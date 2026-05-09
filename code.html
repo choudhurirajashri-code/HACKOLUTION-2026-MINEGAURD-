@@ -1,0 +1,3939 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MineGuard — Smart Mine Safety Portal</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel=stylesheet href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-deep: #f3f6fb;
+            --bg-panel: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card2: #f8fafc;
+            --accent-red: #c2410c;
+            --accent-orange: #d97706;
+            --accent-cyan: #2563eb;
+            --accent-green: #059669;
+            --accent-yellow: #b45309;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-dim: #475569;
+            --border: #dbe3ee;
+            --border-glow: rgba(37, 99, 235, 0.14);
+            --glow-red: rgba(194, 65, 12, 0.16);
+            --glow-green: rgba(5, 150, 105, 0.16);
+            --glow-orange: rgba(217, 119, 6, 0.16);
+            --page-padding: 30px;
+            --card-radius: 22px;
+            --base-scale: 1;
+        }
+
+        body[data-theme="dark"] {
+            --bg-deep: #070d18;
+            --bg-panel: #0d1626;
+            --bg-card: #101a2b;
+            --bg-card2: #0b1421;
+            --accent-red: #fb7185;
+            --accent-orange: #f59e0b;
+            --accent-cyan: #60a5fa;
+            --accent-green: #34d399;
+            --accent-yellow: #fbbf24;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-dim: #cbd5e1;
+            --border: #223149;
+            --border-glow: rgba(96, 165, 250, 0.2);
+            --glow-red: rgba(251, 113, 133, 0.18);
+            --glow-green: rgba(52, 211, 153, 0.18);
+            --glow-orange: rgba(245, 158, 11, 0.18);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: radial-gradient(circle at top, rgba(96, 165, 250, 0.14), transparent 28%), linear-gradient(180deg, var(--bg-deep), var(--bg-deep));
+            color: var(--text-primary);
+            font-family: 'Times New Roman', Times, serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+            font-size: 18px;
+        }
+
+        /* Scanline overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 32%), radial-gradient(circle at top right, rgba(5, 150, 105, 0.08), transparent 28%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* GRID BG */
+        body::after {
+            display: none;
+        }
+
+        /* HEADER */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 500;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            padding: 0 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 76px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-shield {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-cyan);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: #ffffff;
+            border: 2px solid #D4AF37;
+            /* Gold accent */
+        }
+
+        .logo-text {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: var(--text-primary);
+        }
+
+        .logo-sub {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .header-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .theme-toggle {
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: #ffffff;
+            color: var(--text-primary);
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.72rem;
+            cursor: pointer;
+        }
+
+        #live-clock {
+            font-family: 'Times New Roman', Times, serif;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        #global-status-badge {
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            font-family: 'Times New Roman', Times, serif;
+            text-transform: uppercase;
+            background: rgba(5, 150, 105, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(5, 150, 105, 0.2);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        #global-status-badge.caution {
+            background: rgba(217, 119, 6, 0.12);
+            color: var(--accent-orange);
+            border-color: rgba(217, 119, 6, 0.24);
+        }
+
+        #global-status-badge.danger {
+            background: rgba(194, 65, 12, 0.12);
+            color: var(--accent-red);
+            border-color: rgba(194, 65, 12, 0.24);
+            animation: pulse-badge 1s infinite;
+        }
+
+        @keyframes pulse-badge {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.6
+            }
+        }
+
+        /* STATUS BANNER */
+        #status-banner {
+            width: 100%;
+            padding: 14px 20px;
+            text-align: center;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            background: #ffffff;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            transition: all 0.5s;
+            position: relative;
+            z-index: 10;
+        }
+
+        #status-banner.caution {
+            background: rgba(217, 119, 6, 0.08);
+            color: var(--accent-orange);
+            border-color: rgba(217, 119, 6, 0.18);
+        }
+
+        #status-banner.danger {
+            background: rgba(194, 65, 12, 0.08);
+            color: var(--accent-red);
+            border-color: rgba(194, 65, 12, 0.18);
+            animation: flash-banner 1s infinite;
+        }
+
+        @keyframes flash-banner {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.7
+            }
+        }
+
+        /* NAV TABS */
+        nav {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 var(--page-padding);
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+            position: sticky;
+            top: 76px;
+            z-index: 400;
+        }
+
+        .nav-tab {
+            padding: 18px 24px;
+            cursor: pointer;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.84rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-tab:hover {
+            color: var(--accent-cyan);
+        }
+
+        .nav-tab.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        .nav-tab .tab-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* SECTIONS */
+        .section {
+            display: none;
+            padding: 28px var(--page-padding);
+            position: relative;
+            z-index: 1;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--accent-cyan);
+        }
+
+        .card-header {
+            padding: 14px 20px 14px 24px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fbfdff;
+        }
+
+        .card-body {
+            padding: 20px 24px;
+        }
+
+        /* SENSOR GRID */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+
+        .sensor-card {
+            background: var(--bg-card2);
+            border: 1px solid var(--border);
+            padding: 24px 18px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            border-radius: 16px;
+        }
+
+        .sensor-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+        }
+
+        .sensor-card.warn {
+            border-color: rgba(217, 119, 6, 0.45);
+            box-shadow: 0 10px 24px rgba(217, 119, 6, 0.08);
+        }
+
+        .sensor-card.crit {
+            border-color: rgba(194, 65, 12, 0.45);
+            box-shadow: 0 10px 24px rgba(194, 65, 12, 0.08);
+        }
+
+        .sensor-label {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
+        }
+
+        .sensor-value {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 3.4rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .sensor-unit {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.76rem;
+            color: var(--accent-cyan);
+            margin-top: 6px;
+        }
+
+        .sensor-peak {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-family: 'Times New Roman', Times, serif;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .sensor-bar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .sensor-bar-fill {
+            height: 100%;
+            background: var(--accent-cyan);
+            transition: width 0.5s, background 0.3s;
+        }
+
+        /* GRID LAYOUTS */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        .main-side {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+        }
+
+        @media(max-width: 900px) {
+
+            .two-col,
+            .three-col,
+            .main-side {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.35);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .btn:hover::after {
+            opacity: 1;
+        }
+
+        .btn-cyan {
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+        }
+
+        .btn-cyan:hover {
+            background: rgba(37, 99, 235, 0.12);
+        }
+
+        .btn-red {
+            background: rgba(194, 65, 12, 0.08);
+            color: var(--accent-red);
+            border: 1px solid rgba(194, 65, 12, 0.18);
+        }
+
+        .btn-red:hover {
+            background: rgba(194, 65, 12, 0.12);
+        }
+
+        .btn-orange {
+            background: rgba(217, 119, 6, 0.08);
+            color: var(--accent-orange);
+            border: 1px solid rgba(217, 119, 6, 0.18);
+        }
+
+        .btn-orange:hover {
+            background: rgba(217, 119, 6, 0.12);
+        }
+
+        .btn-green {
+            background: rgba(5, 150, 105, 0.08);
+            color: var(--accent-green);
+            border: 1px solid rgba(5, 150, 105, 0.18);
+        }
+
+        .btn-green:hover {
+            background: rgba(5, 150, 105, 0.12);
+        }
+
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 0.68rem;
+        }
+
+        /* CONTROL PANEL */
+        .control-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 18px 22px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            border-radius: 18px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .control-label {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            margin-right: 8px;
+        }
+
+        /* CONNECT BTN */
+        #connectBtn {
+            display: block;
+            margin: 0 auto 18px auto;
+            padding: 14px 34px;
+            background: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+            color: #ffffff;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 999px;
+        }
+
+        #connectBtn:hover {
+            filter: brightness(0.96);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
+        }
+
+        /* INCIDENT LOG */
+        .incident-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+            border-radius: 18px;
+        }
+
+        .incident-header {
+            padding: 12px 18px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.78rem;
+            color: var(--text-primary);
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .incident-list {
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 10px 18px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.88rem;
+        }
+
+        .incident-item {
+            padding: 5px 0;
+            border-bottom: 1px dashed var(--border);
+            color: var(--text-secondary);
+        }
+
+        .incident-time {
+            color: var(--accent-red);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        /* TERMINAL LOG */
+        .terminal {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            height: 160px;
+            overflow-y: auto;
+            padding: 14px 18px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            border-radius: 18px;
+        }
+
+        .log-info {
+            color: var(--accent-cyan);
+        }
+
+        .log-warn {
+            color: var(--accent-yellow);
+        }
+
+        .log-danger {
+            color: var(--accent-red);
+            font-weight: bold;
+        }
+
+        .log-normal {
+            color: var(--text-secondary);
+        }
+
+        /* PREDICTIVE ENGINE */
+        .hazard-countdown {
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            border: 1px solid var(--border);
+            padding: 22px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border-radius: 18px;
+        }
+
+        .hazard-countdown::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.06), transparent 70%);
+        }
+
+        .hazard-title {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+        }
+
+        #countdown-value {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 4rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .hazard-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        #hazard-action {
+            margin-top: 12px;
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            font-family: 'Times New Roman', Times, serif;
+            padding: 10px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .trend-chart {
+            width: 100%;
+            height: 60px;
+        }
+
+        /* METRIC BAR */
+        .metric-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .metric-name {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .metric-bar-wrap {
+            flex: 1;
+            height: 8px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .metric-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.8s cubic-bezier(.4, 0, .2, 1), background 0.3s;
+        }
+
+        .metric-val {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.84rem;
+            width: 60px;
+            text-align: right;
+        }
+
+        /* 3D MINE CANVAS */
+        #mine-canvas {
+            width: 100%;
+            height: 420px;
+            display: block;
+            background: radial-gradient(ellipse at center, #f8fbff, #edf3fb);
+        }
+
+        .mine-legend {
+            display: flex;
+            gap: 20px;
+            padding: 10px 16px;
+            flex-wrap: wrap;
+            background: #ffffff;
+            border-top: 1px solid var(--border);
+        }
+
+        .mine-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* COMPLIANCE */
+        .eia-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Times New Roman';
+            font-size: 0.8rem;
+        }
+
+        .eia-table th {
+            background: rgba(37, 99, 235, 0.06);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .eia-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .eia-table tr:hover td {
+            background: rgba(37, 99, 235, 0.03);
+        }
+
+        .status-pill {
+            padding: 2px 10px;
+            border-radius: 2px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .pill-ok {
+            background: rgba(5, 150, 105, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(5, 150, 105, 0.2);
+        }
+
+        .pill-warn {
+            background: rgba(217, 119, 6, 0.12);
+            color: var(--accent-orange);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+        }
+
+        .pill-crit {
+            background: rgba(194, 65, 12, 0.12);
+            color: var(--accent-red);
+            border: 1px solid rgba(194, 65, 12, 0.2);
+        }
+
+        /* VESSEL TRACKER */
+        .vessel-map {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            height: 200px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+        }
+
+        .vessel-map svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .vessel-dot {
+            animation: vessel-move 8s linear infinite;
+        }
+
+        @keyframes vessel-move {
+            0% {
+                transform: translateX(0)
+            }
+
+            100% {
+                transform: translateX(180px)
+            }
+        }
+
+        /* GPS ATLAS */
+        .gps-shell {
+            display: grid;
+            grid-template-columns: 336px minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .gps-sidebar {
+            position: sticky;
+            top: 92px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0.06));
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px;
+            backdrop-filter: blur(8px);
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+
+        .gps-sidebar.collapsed {
+            transform: translateX(-100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .gps-sidebar-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .gps-sidebar-title {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.98rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: 0.04em;
+        }
+
+        .gps-close {
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 8px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.7rem;
+        }
+
+        .gps-section {
+            padding: 12px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .gps-section:first-of-type {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .gps-field {
+            margin-bottom: 10px;
+        }
+
+        .gps-label {
+            display: block;
+            margin-bottom: 6px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.66rem;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+        }
+
+        .gps-input,
+        .gps-select {
+            width: 100%;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.78rem;
+        }
+
+        .gps-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .gps-minirow {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .gps-button {
+            width: 100%;
+            border: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(6, 182, 212, 0.1));
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+
+        .gps-button:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        .gps-status-card {
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            margin-bottom: 10px;
+        }
+
+        .gps-status-card .k {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            letter-spacing: 0.12em;
+        }
+
+        .gps-status-card .v {
+            font-size: 0.92rem;
+            font-weight: 700;
+            margin-top: 4px;
+            color: var(--text-primary);
+        }
+
+        .gps-alert-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .gps-alert-item {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--bg-card);
+        }
+
+        .gps-alert-item.active {
+            border-color: rgba(52, 211, 153, 0.35);
+        }
+
+        .gps-alert-item.caution {
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+
+        .gps-alert-item.high-risk {
+            border-color: rgba(251, 113, 133, 0.45);
+            box-shadow: 0 0 0 1px rgba(251, 113, 133, 0.08) inset;
+        }
+
+        .gps-alert-name {
+            font-size: 0.82rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .gps-alert-meta {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .gps-map-wrap {
+            position: relative;
+        }
+
+        #gps-map {
+            height: 720px;
+            min-height: 640px;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            overflow: hidden;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.42), rgba(15, 23, 42, 0.12));
+        }
+
+        .gps-map-toolbar {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            right: 14px;
+            z-index: 4;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .gps-map-toolbar>* {
+            pointer-events: auto;
+        }
+
+        .gps-toolbar-chip {
+            background: rgba(15, 23, 42, 0.72);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.7rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .gps-search-wrap {
+            flex: 1;
+            min-width: 260px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .gps-map-legend {
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            z-index: 4;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 12px;
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+        }
+
+        .gps-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #e2e8f0;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.62rem;
+        }
+
+        .gps-legend-swatch {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .gps-map-badge {
+            position: absolute;
+            top: 74px;
+            right: 14px;
+            z-index: 4;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            padding: 8px 10px;
+            border-radius: 12px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.68rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .gps-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45));
+        }
+
+        .gps-marker svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .gps-marker.underground {
+            color: #3b82f6;
+        }
+
+        .gps-marker.opencast {
+            color: #8b5a2b;
+        }
+
+        .gps-marker.breach {
+            color: #ef4444;
+            animation: gps-breach-pulse 1s infinite ease-in-out;
+        }
+
+        .gps-live-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.72);
+            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.55);
+            animation: gps-live-pulse 1.8s infinite;
+        }
+
+        .gps-live-dot.worker {
+            background: #22c55e;
+        }
+
+        .gps-live-dot.vehicle {
+            background: #f59e0b;
+        }
+
+        .gps-live-dot.worker.alert {
+            background: #ef4444;
+        }
+
+        @keyframes gps-live-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.5)
+            }
+
+            70% {
+                box-shadow: 0 0 0 12px rgba(96, 165, 250, 0)
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(96, 165, 250, 0)
+            }
+        }
+
+        @keyframes gps-breach-pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1
+            }
+
+            50% {
+                transform: scale(1.12);
+                opacity: 0.78
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .gps-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .gps-sidebar {
+                position: static;
+            }
+
+            #gps-map {
+                height: 560px;
+                min-height: 560px;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .gps-map-toolbar {
+                position: static;
+                margin-bottom: 10px;
+            }
+
+            .gps-map-legend,
+            .gps-map-badge {
+                position: static;
+                margin-top: 10px;
+            }
+
+            .gps-search-wrap {
+                min-width: 100%;
+            }
+        }
+
+        /* MAINTENANCE */
+        .pdm-gauge {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+        }
+
+        .pdm-gauge svg {
+            transform: rotate(-90deg);
+        }
+
+        .pdm-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .pdm-pct {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .pdm-sub {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.55rem;
+            color: var(--text-dim);
+        }
+
+        .equipment-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .equip-icon {
+            font-size: 1.5rem;
+        }
+
+        .equip-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .equip-detail {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .health-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .health-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        /* ENERGY BARS */
+        .energy-item {
+            margin-bottom: 12px;
+        }
+
+        .energy-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .energy-name {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .energy-val {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+        }
+
+        .energy-track {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), #0284c7);
+            border-radius: 4px;
+            transition: width 1s;
+        }
+
+        /* RAILWAY */
+        .rake-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .rake-id {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.7rem;
+            color: var(--accent-cyan);
+            width: 80px;
+        }
+
+        .rake-track {
+            flex: 1;
+            height: 8px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .rake-progress {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-green), #16a34a);
+            border-radius: 2px;
+            transition: width 1s;
+        }
+
+        .rake-train {
+            position: absolute;
+            top: -4px;
+            width: 16px;
+            height: 16px;
+            font-size: 12px;
+            transition: left 1s;
+        }
+
+        .rake-eta {
+            font-family: 'Times New Roman';
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            width: 70px;
+            text-align: right;
+        }
+
+        /* KNOWLEDGE */
+        .wiki-entry {
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .wiki-title {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1.05rem;
+            margin-bottom: 4px;
+        }
+
+        .wiki-meta {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .wiki-content {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .wiki-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .wiki-tag {
+            padding: 2px 8px;
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid rgba(37, 99, 235, 0.16);
+            color: var(--accent-cyan);
+            font-size: 0.65rem;
+            font-family: 'Times New Roman', Times, serif;
+            border-radius: 999px;
+        }
+
+        /* VR MODULE */
+        .vr-scene {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            height: 220px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+            border-radius: 16px;
+        }
+
+        .vr-grid {
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(rgba(37, 99, 235, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 99, 235, 0.06) 1px, transparent 1px);
+            background-size: 30px 30px;
+            perspective: 300px;
+            transform: rotateX(30deg) scale(1.5);
+            transform-origin: bottom;
+        }
+
+        .vr-title {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            z-index: 1;
+        }
+
+        .vr-sub {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            z-index: 1;
+        }
+
+        /* COMMUNITY */
+        .feedback-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .feedback-form label {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .feedback-form select,
+        .feedback-form textarea,
+        .feedback-form input {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.3s;
+            border-radius: 12px;
+        }
+
+        .feedback-form select:focus,
+        .feedback-form textarea:focus,
+        .feedback-form input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+        }
+
+        .feedback-form textarea {
+            height: 80px;
+            resize: vertical;
+        }
+
+        .lang-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .lang-picker {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .lang-picker.compact {
+            width: auto;
+            min-width: 180px;
+        }
+
+        .lang-note {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* REPORT */
+        .report-preview {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            padding: 20px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 16px;
+        }
+
+        .report-line {
+            margin-bottom: 6px;
+        }
+
+        .report-key {
+            color: var(--accent-cyan);
+        }
+
+        /* MISC */
+        .section-title {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border), transparent);
+        }
+
+        .badge {
+            padding: 2px 8px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.6rem;
+            letter-spacing: 0.08em;
+            border-radius: 999px;
+        }
+
+        .badge-live {
+            background: rgba(5, 150, 105, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(5, 150, 105, 0.2);
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.4
+            }
+        }
+
+        .badge-cyan {
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+        }
+
+        .mini-stat {
+            text-align: center;
+            padding: 12px;
+        }
+
+        .mini-stat-val {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+
+        .mini-stat-label {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            margin-top: 4px;
+        }
+
+        .node-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .node-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            padding: 12px;
+            text-align: center;
+            transition: border-color 0.3s;
+            border-radius: 14px;
+        }
+
+        .node-card.online {
+            border-color: rgba(5, 150, 105, 0.25);
+        }
+
+        .node-card.offline {
+            border-color: rgba(100, 116, 139, 0.25);
+            opacity: 0.75;
+        }
+
+        .node-card.alert {
+            border-color: rgba(217, 119, 6, 0.25);
+            box-shadow: 0 10px 20px rgba(217, 119, 6, 0.08);
+        }
+
+        .node-name {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.65rem;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .node-status {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.6rem;
+            margin-bottom: 6px;
+        }
+
+        .node-vals {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        header,
+        nav,
+        .card-header,
+        .terminal,
+        .hazard-countdown,
+        .report-preview,
+        .vr-scene,
+        .vessel-map,
+        .feedback-form select,
+        .feedback-form textarea,
+        .feedback-form input,
+        .lang-picker,
+        .node-card {
+            background: var(--bg-panel);
+        }
+
+        .card,
+        .sensor-card,
+        .incident-box,
+        .control-panel {
+            background: var(--bg-card);
+        }
+
+        .section-title,
+        .nav-tab.active,
+        .sensor-unit,
+        .report-key,
+        .node-name,
+        .status-pill {
+            color: var(--text-primary);
+        }
+
+        body[data-theme="dark"]::before {
+            background: radial-gradient(circle at top left, rgba(96, 165, 250, 0.12), transparent 32%), radial-gradient(circle at top right, rgba(52, 211, 153, 0.08), transparent 28%);
+        }
+
+        .theme-toggle {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+
+        .card-header,
+        .report-preview,
+        .terminal,
+        .vessel-map,
+        .vr-scene,
+        .feedback-form select,
+        .feedback-form textarea,
+        .feedback-form input,
+        .lang-picker {
+            border-color: var(--border);
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-deep);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-cyan);
+        }
+
+        /* CANVAS SVG INLINE TRENDS */
+        canvas.sparkline {
+            display: block;
+        }
+
+        .mb16 {
+            margin-bottom: 16px;
+        }
+
+        .mb8 {
+            margin-bottom: 8px;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .gap8 {
+            gap: 8px;
+        }
+
+        .gap16 {
+            gap: 16px;
+        }
+
+        .flex-wrap {
+            flex-wrap: wrap;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        .emergency-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(220, 38, 38, 0.95);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse-bg 1s infinite alternate;
+        }
+
+        .emergency-modal {
+            background: #000;
+            border: 4px solid #fff;
+            border-radius: 20px;
+            padding: 50px;
+            text-align: center;
+            color: #fff;
+            max-width: 800px;
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.8);
+        }
+
+        .emergency-title {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #ef4444;
+            margin: 0;
+            letter-spacing: 2px;
+            animation: flash-text 0.5s infinite alternate;
+        }
+
+        .emergency-reason {
+            font-size: 2.5rem;
+            color: #fca5a5;
+            margin: 10px 0 30px;
+        }
+
+        .emergency-icon {
+            font-size: 6rem;
+            margin-bottom: 20px;
+        }
+
+        .emergency-details {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.2rem;
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        @keyframes pulse-bg {
+            0% {
+                background: rgba(185, 28, 28, 0.95);
+            }
+
+            100% {
+                background: rgba(220, 38, 38, 0.95);
+            }
+        }
+
+        @keyframes flash-text {
+            0% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.7;
+            }
+        }
+
+
+        /* --- GOVERNMENT PROFESSIONAL UPGRADES --- */
+        body {
+            background-color: var(--bg-deep);
+            background-image: none !important;
+            font-family: 'Times New Roman', Times, serif !important;
+        }
+
+        /* Make all icons/emojis bigger by scaling up the elements that usually contain them */
+        .section-title {
+            font-size: 1.5rem !important;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .btn {
+            font-size: 1.1rem !important;
+            border-radius: 4px !important;
+            /* Square professional buttons */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            transition: all 0.2s;
+        }
+
+        .nav-tab {
+            font-size: 1.1rem !important;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Rigid Government Cards */
+        .card,
+        .sensor-card,
+        .incident-box {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border-radius: 0 !important;
+            /* Square edges */
+            border: 1px solid var(--border) !important;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        body[data-theme="dark"] .card,
+        body[data-theme="dark"] .sensor-card,
+        body[data-theme="dark"] .incident-box {
+            background: #111827 !important;
+            border-color: #374151 !important;
+        }
+
+        body[data-theme="light"] .card,
+        body[data-theme="light"] .sensor-card,
+        body[data-theme="light"] .incident-box {
+            background: #ffffff !important;
+            border-color: #d1d5db !important;
+        }
+
+        /* Header */
+        header {
+            border-bottom: 4px solid var(--accent-cyan) !important;
+            background: var(--bg-panel) !important;
+        }
+
+        /* Professional Colors */
+        body[data-theme="light"] {
+            --bg-deep: #f3f4f6;
+            --bg-panel: #ffffff;
+            --accent-cyan: #0f2862;
+            /* Official Navy Blue */
+            --border: #d1d5db;
+        }
+
+        body[data-theme="dark"] {
+            --bg-deep: #030712;
+            --bg-panel: #111827;
+            --accent-cyan: #3b82f6;
+            --border: #374151;
+        }
+    </style>
+</head>
+
+<body data-theme="dark">
+
+    <!-- EMERGENCY FULL SCREEN OVERLAY -->
+    <div id="emergency-overlay" class="emergency-overlay" style="display:none;">
+        <div class="emergency-modal">
+            <div class="emergency-icon">🚨</div>
+            <h1 class="emergency-title">EVACUATE IMMEDIATELY</h1>
+            <h2 id="emergency-reason" class="emergency-reason">CRITICAL HAZARD DETECTED</h2>
+            <div class="emergency-details">
+                DGMS Regulation 2017 limits have been breached.<br>
+                All personnel must proceed to the nearest safe refuge chamber or surface exit.
+            </div>
+            <button class="btn btn-danger"
+                style="margin-top:30px; font-size:1.2rem; padding:15px 40px; border:2px solid #fff; color:#fff; cursor:pointer"
+                onclick="hideEmergencyModal()">MUTE ALARM & ACKNOWLEDGE</button>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header>
+        <div class="logo">
+            <div class="logo-shield">🏛</div>
+            <div>
+                <div class="logo-text" style="font-size: 1.8rem; font-weight: bold; color: var(--accent-cyan);">
+                    MINEGUARD</div>
+                <div class="logo-sub">SMART MINE SAFETY PORTAL — IoT POWERED v4.0</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="header-controls">
+                <div class="header-chip"><select id="site-language-picker" class="lang-picker compact"></select></div>
+                <button id="themeToggleBtn" class="theme-toggle" type="button">🌙 Dark</button>
+            </div>
+            <div id="live-clock">--:--:--</div>
+            <div id="global-status-badge">NOMINAL</div>
+        </div>
+    </header>
+
+    <!-- STATUS BANNER -->
+    <div id="status-banner">◈ ALL SYSTEMS NOMINAL // AWAITING TELEMETRY LINK ◈</div>
+
+    <!-- NAV -->
+    <nav>
+        <div id="nav-ops" class="nav-tab active" onclick="switchTab('ops')"><span class="tab-dot"></span>Operations
+            Console</div>
+        <div id="nav-predict" class="nav-tab" onclick="switchTab('predict')"><span class="tab-dot"></span>Predictive
+            Engine</div>
+
+        <div id="nav-gps" class="nav-tab" onclick="switchTab('gps');renderGPSAtlas()"><span class="tab-dot"></span>GPS
+            Atlas</div>
+        <div id="nav-compliance" class="nav-tab" onclick="switchTab('compliance')"><span
+                class="tab-dot"></span>Compliance Portal</div>
+        <div id="nav-maintenance" class="nav-tab" onclick="switchTab('maintenance')"><span
+                class="tab-dot"></span>Maintenance & Logistics</div>
+
+        <button class="btn btn-danger"
+            style="margin-left:auto; padding:8px 16px; font-weight:bold; height: 32px; display:flex; align-items:center; border: 1px solid #fff; cursor: pointer; animation: pulse-bg 2s infinite"
+            onclick="triggerManualSOS()">🚨 MANUAL SOS</button>
+    </nav>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!--  TAB 1: OPERATIONS CONSOLE                                    -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="tab-ops" class="section active">
+
+        <button id="connectBtn">⚡ CONNECT SERIAL PORT</button>
+
+        <div class="control-panel mb16">
+            <span class="control-label">OPERATOR ACTIONS //</span>
+            <button class="btn btn-orange btn-sm" id="btnCaution">⚠ MANUAL CAUTION</button>
+            <button class="btn btn-red btn-sm" id="btnDanger">🚨 EMERGENCY SIREN</button>
+            <button class="btn btn-cyan btn-sm" id="btnReset">↺ SYSTEM RESET</button>
+            <button class="btn btn-green btn-sm" onclick="generateDGMSReport()">📄 DGMS REPORT</button>
+        </div>
+
+        <!-- SENSOR CARDS -->
+        <div class="sensor-grid mb16">
+            <div class="sensor-card" id="sc-temp">
+                <div class="sensor-label">THERMAL LEVEL</div>
+                <div class="sensor-value" id="temp">--</div>
+                <div class="sensor-unit">°C</div>
+                <div class="sensor-bar">
+                    <div class="sensor-bar-fill" id="bar-temp" style="width:0%"></div>
+                </div>
+                <div class="sensor-peak">MAX: <span id="p-temp">0</span>°C</div>
+            </div>
+            <div class="sensor-card" id="sc-hum">
+                <div class="sensor-label">HUMIDITY</div>
+                <div class="sensor-value" id="hum">--</div>
+                <div class="sensor-unit">%</div>
+                <div class="sensor-bar">
+                    <div class="sensor-bar-fill" id="bar-hum" style="width:0%"></div>
+                </div>
+                <div class="sensor-peak">MAX: <span id="p-hum">0</span>%</div>
+            </div>
+            <div class="sensor-card" id="sc-mq4">
+                <div class="sensor-label">METHANE CH₄</div>
+                <div class="sensor-value" id="mq4">--</div>
+                <div class="sensor-unit">PPM</div>
+                <div class="sensor-bar">
+                    <div class="sensor-bar-fill" id="bar-mq4" style="width:0%"></div>
+                </div>
+                <div class="sensor-peak">MAX: <span id="p-mq4">0</span></div>
+            </div>
+            <div class="sensor-card" id="sc-mq135">
+                <div class="sensor-label">CARBON MON. CO</div>
+                <div class="sensor-value" id="mq135">--</div>
+                <div class="sensor-unit">PPM</div>
+                <div class="sensor-bar">
+                    <div class="sensor-bar-fill" id="bar-mq135" style="width:0%"></div>
+                </div>
+                <div class="sensor-peak">MAX: <span id="p-mq135">0</span></div>
+            </div>
+            <div class="sensor-card" id="sc-water">
+                <div class="sensor-label">WATER CLEARANCE</div>
+                <div class="sensor-value" id="water">--</div>
+                <div class="sensor-unit">CM</div>
+                <div class="sensor-bar">
+                    <div class="sensor-bar-fill" id="bar-water" style="width:100%;background:var(--accent-green)"></div>
+                </div>
+                <div class="sensor-peak" style="color:var(--accent-orange)">MIN: <span id="p-water">500</span> CM</div>
+            </div>
+        </div>
+
+        <div class="main-side mb16">
+            <!-- INCIDENT LOG -->
+            <div class="incident-box">
+                <div class="incident-header">⚠ EMERGENCY INCIDENT RECORD // CRITICAL EVENTS ONLY</div>
+                <div id="incidentList" class="incident-list">
+                    <div id="noIncidentMsg"
+                        style="color:var(--text-dim);font-style:italic;font-family:'Times New Roman';font-size:0.75rem;padding:8px 0">
+                        No critical incidents recorded in current session.</div>
+                </div>
+            </div>
+
+            <!-- NODE STATUS -->
+            <div class="card">
+                <div class="card-header">IoT Node Network <span class="badge badge-live">● LIVE</span></div>
+                <div class="card-body">
+                    <div class="node-grid" id="nodeGrid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TERMINAL -->
+        <div class="terminal" id="log"></div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!--  TAB 2: PREDICTIVE ENGINE                                     -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="tab-predict" class="section">
+
+        <div id="title-predict" class="section-title">⚡ PROACTIVE ALERT ENGINE</div>
+
+        <div class="three-col mb16">
+            <!-- TIME TO HAZARD -->
+            <div class="hazard-countdown" id="hazardBox">
+                <div class="hazard-title">⏱ TIME-TO-HAZARD COUNTDOWN</div>
+                <div id="countdown-value">--:--</div>
+                <div class="hazard-label">Est. Critical Threshold Breach</div>
+                <div id="hazard-action">Monitoring all parameters — currently stable</div>
+            </div>
+
+            <!-- GAS TREND -->
+            <div class="card">
+                <div class="card-header">Gas Rise Rate (PPM/min) <span class="badge badge-cyan">AI</span></div>
+                <div class="card-body">
+                    <div class="metric-row">
+                        <div class="metric-name">CH₄</div>
+                        <div class="metric-bar-wrap">
+                            <div class="metric-bar-fill" id="rate-bar-ch4"
+                                style="width:5%;background:var(--accent-cyan)"></div>
+                        </div>
+                        <div class="metric-val" id="rate-ch4" style="color:var(--accent-cyan)">+0</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-name">CO</div>
+                        <div class="metric-bar-wrap">
+                            <div class="metric-bar-fill" id="rate-bar-co"
+                                style="width:5%;background:var(--accent-orange)"></div>
+                        </div>
+                        <div class="metric-val" id="rate-co" style="color:var(--accent-orange)">+0</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-name">TEMP</div>
+                        <div class="metric-bar-wrap">
+                            <div class="metric-bar-fill" id="rate-bar-temp"
+                                style="width:5%;background:var(--accent-yellow)"></div>
+                        </div>
+                        <div class="metric-val" id="rate-temp" style="color:var(--accent-yellow)">+0</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-name">HUMIDITY</div>
+                        <div class="metric-bar-wrap">
+                            <div class="metric-bar-fill" id="rate-bar-hum" style="width:5%;background:#a78bfa"></div>
+                        </div>
+                        <div class="metric-val" id="rate-hum" style="color:#a78bfa">+0</div>
+                    </div>
+                    <div style="margin-top:12px;font-family:'Times New Roman';font-size:0.65rem;color:var(--text-dim)">
+                        Kalman-filtered moving average</div>
+                </div>
+            </div>
+
+            <!-- AI PREDICTION -->
+            <div class="card">
+                <div class="card-header">Neural Net Hazard Prediction <span class="badge badge-cyan">LSTM</span></div>
+                <div class="card-body">
+                    <div id="ai-predictions">
+                        <div class="mini-stat" style="border-bottom:1px solid var(--border);margin-bottom:12px">
+                            <div class="mini-stat-val" id="ai-risk-score" style="color:var(--accent-green)">LOW</div>
+                            <div class="mini-stat-label">COMPOSITE RISK LEVEL</div>
+                        </div>
+                        <div id="ai-output"
+                            style="font-family:'Times New Roman';font-size:0.7rem;color:var(--text-secondary);line-height:1.8">
+                            <div>▸ CH₄ trend: <span id="ai-ch4-trend" style="color:var(--accent-green)">STABLE</span>
+                            </div>
+                            <div>▸ CO trend: <span id="ai-co-trend" style="color:var(--accent-green)">STABLE</span>
+                            </div>
+                            <div>▸ Temp: <span id="ai-temp-trend" style="color:var(--accent-green)">NORMAL</span></div>
+                            <div>▸ Flood risk: <span id="ai-flood" style="color:var(--accent-green)">LOW</span></div>
+                            <div style="margin-top:10px;color:var(--text-dim)">Next assessment: <span
+                                    id="ai-next">30s</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SPARKLINE CHART -->
+        <div class="card mb16">
+            <div class="card-header">Real-Time Sensor History (Last 60 Readings) <span class="badge badge-live">●
+                    LIVE</span></div>
+            <div class="card-body" style="padding:10px">
+                <canvas id="sparkCanvas" height="160" style="width:100%;display:block"></canvas>
+                <div
+                    style="display:flex;gap:20px;margin-top:8px;font-family:'Times New Roman';font-size:0.65rem;flex-wrap:wrap">
+                    <span style="color:#06b6d4">● CH₄ (PPM/10)</span>
+                    <span style="color:#f97316">● CO (PPM/10)</span>
+                    <span style="color:#eab308">● Temp (°C)</span>
+                    <span style="color:#a78bfa">● Humidity (%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISIBILITY MATRIX -->
+        <div class="card">
+            <div class="card-header">Real-Time Visibility Matrix // All IoT Nodes</div>
+            <div class="card-body">
+                <div class="node-grid" id="visibilityMatrix"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!--  TAB 3: DIGITAL TWIN (3D MAP)                                 -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!--  TAB 4: COMPLIANCE PORTAL                                     -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="tab-compliance" class="section">
+
+        <div id="title-compliance" class="section-title">📋 INTEGRATED COMPLIANCE PORTAL</div>
+
+        <div class="three-col mb16">
+            <div class="mini-stat card" style="padding:20px">
+                <div id="stat-dgms-compliance" class="mini-stat-val" style="color:var(--accent-green)">--%</div>
+                <div class="mini-stat-label">DGMS COMPLIANCE</div>
+            </div>
+            <div class="mini-stat card" style="padding:20px">
+                <div id="stat-eia-reports" class="mini-stat-val" style="color:var(--accent-cyan)">0</div>
+                <div class="mini-stat-label">EIA REPORTS FILED</div>
+            </div>
+            <div class="mini-stat card" style="padding:20px">
+                <div id="stat-pending-clearances" class="mini-stat-val" style="color:var(--accent-yellow)">0</div>
+                <div class="mini-stat-label">PENDING CLEARANCES</div>
+            </div>
+        </div>
+
+        <!-- EIA VAULT -->
+        <div class="card mb16">
+            <div class="card-header">
+                🌿 EIA DATA TRANSPARENCY VAULT
+                <div style="display:flex;gap:8px">
+                    <span class="badge badge-live">● PUBLIC</span>
+                    <button class="btn btn-cyan btn-sm" onclick="addEIAEntry()">+ Upload Data</button>
+                </div>
+            </div>
+            <div class="card-body" style="padding:0">
+                <table class="eia-table">
+                    <thead>
+                        <tr>
+                            <th>TIMESTAMP</th>
+                            <th>PARAMETER</th>
+                            <th>VALUE</th>
+                            <th>LIMIT</th>
+                            <th>STATUS</th>
+                            <th>LOCATION</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eia-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="two-col mb16">
+            <!-- VESSEL TRACKER -->
+            <div class="card">
+                <div class="card-header">🚢 OFFSHORE VESSEL MONITOR <span class="badge badge-live">● LIVE</span></div>
+                <div class="card-body">
+                    <div class="vessel-map" id="vesselMap">
+                        <svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Sea background -->
+                            <defs>
+                                <pattern id="wave" x="0" y="0" width="40" height="10" patternUnits="userSpaceOnUse">
+                                    <path d="M0,5 Q10,0 20,5 Q30,10 40,5" stroke="rgba(6,182,212,0.2)" fill="none"
+                                        stroke-width="1" />
+                                </pattern>
+                            </defs>
+                            <rect fill="url(#wave)" width="400" height="200" />
+                            <rect fill="rgba(6,182,212,0.05)" width="400" height="200" />
+                            <!-- Grid -->
+                            <line x1="0" y1="100" x2="400" y2="100" stroke="rgba(6,182,212,0.1)" stroke-width="1"
+                                stroke-dasharray="5,5" />
+                            <!-- Vessels -->
+                            <g id="vessel1" transform="translate(20,80)">
+                                <rect x="0" y="0" width="30" height="12" rx="3" fill="#06b6d4" opacity="0.8" />
+                                <text x="15" y="9" text-anchor="middle" font-size="6" fill="white"
+                                    font-family="monospace">MG-01</text>
+                                <animate attributeName="transform"
+                                    values="translate(20,80);translate(250,80);translate(20,80)" dur="12s"
+                                    repeatCount="indefinite" />
+                            </g>
+                            <g id="vessel2" transform="translate(180,130)">
+                                <rect x="0" y="0" width="30" height="12" rx="3" fill="#22c55e" opacity="0.8" />
+                                <text x="15" y="9" text-anchor="middle" font-size="6" fill="white"
+                                    font-family="monospace">MG-02</text>
+                                <animate attributeName="transform"
+                                    values="translate(180,130);translate(320,130);translate(180,130)" dur="9s"
+                                    repeatCount="indefinite" />
+                            </g>
+                            <g transform="translate(320,50)">
+                                <circle r="5" fill="#ef4444" opacity="0.8">
+                                    <animate attributeName="r" values="5;8;5" dur="2s" repeatCount="indefinite" />
+                                </circle>
+                                <text x="10" y="4" font-size="7" fill="#ef4444" font-family="monospace">ALERT
+                                    ZONE</text>
+                            </g>
+                        </svg>
+                    </div>
+                    <div
+                        style="margin-top:10px;font-family:'Times New Roman';font-size:0.7rem;color:var(--text-secondary)">
+                        <div style="margin-bottom:4px">🚢 MG-01 — <span style="color:var(--accent-cyan)">EN ROUTE</span>
+                            | AES-256 Encrypted</div>
+                        <div>🚢 MG-02 — <span style="color:var(--accent-green)">DOCKED</span> | Video Feed: Active</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AUTO STATUTORY REPORT -->
+            <div class="card">
+                <div class="card-header">📄 AUTOMATED STATUTORY REPORTING</div>
+                <div class="card-body">
+                    <div
+                        style="margin-bottom:12px;font-family:'Times New Roman';font-size:0.7rem;color:var(--text-secondary)">
+                        DGMS Rules 1955 • MMDR Amendment 2026 • SparkFun MQ-4 Standards
+                    </div>
+                    <div class="report-preview" id="reportPreview">
+                        <div class="report-line"><span class="report-key">REPORT_TYPE:</span> Daily Safety Summary</div>
+                        <div class="report-line"><span class="report-key">MINE_ID:</span> MG-HACKOLUTION-2K26</div>
+                        <div class="report-line"><span class="report-key">GENERATED:</span> <span
+                                id="rpt-time">--</span></div>
+                        <div class="report-line"><span class="report-key">CH4_MAX:</span> <span id="rpt-ch4">--</span>
+                            PPM</div>
+                        <div class="report-line"><span class="report-key">CO_MAX:</span> <span id="rpt-co">--</span> PPM
+                        </div>
+                        <div class="report-line"><span class="report-key">TEMP_MAX:</span> <span id="rpt-temp">--</span>
+                            °C</div>
+                        <div class="report-line"><span class="report-key">INCIDENTS:</span> <span id="rpt-inc">0</span>
+                        </div>
+                        <div class="report-line"><span class="report-key">STATUS:</span> <span id="rpt-status"
+                                style="color:var(--accent-green)">COMPLIANT</span></div>
+                        <div class="report-line"><span class="report-key">DGMS_SIGN:</span> [AUTO-GENERATED HASH]</div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px">
+                        <button class="btn btn-cyan btn-sm" onclick="generateDGMSReport()">⟳ GENERATE</button>
+                        <button class="btn btn-green btn-sm" onclick="downloadReport()">↓ DOWNLOAD PDF</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMMUNITY TRANSPARENCY -->
+        <div class="card">
+            <div class="card-header">🌍 COMMUNITY DATA TRANSPARENCY // Adivasi & Local Access Portal</div>
+            <div class="card-body">
+                <div style="font-family:'Times New Roman';font-size:0.7rem;color:var(--text-dim);margin-bottom:12px">
+                    Real-time environmental data available to local communities, NGOs, and regulatory bodies
+                </div>
+                <div class="three-col">
+                    <div
+                        style="text-align:center;padding:16px;background:var(--bg-deep);border:1px solid var(--border)">
+                        <div style="font-size:1.8rem;margin-bottom:6px">💨</div>
+                        <div style="font-family:'Orbitron';font-size:1.2rem;color:var(--accent-green)" id="pub-air">GOOD
+                        </div>
+                        <div style="font-family:'Times New Roman';font-size:0.65rem;color:var(--text-dim)">AIR QUALITY
+                            INDEX</div>
+                    </div>
+                    <div
+                        style="text-align:center;padding:16px;background:var(--bg-deep);border:1px solid var(--border)">
+                        <div style="font-size:1.8rem;margin-bottom:6px">💧</div>
+                        <div style="font-family:'Orbitron';font-size:1.2rem;color:var(--accent-cyan)" id="pub-water">
+                            SAFE</div>
+                        <div style="font-family:'Times New Roman';font-size:0.65rem;color:var(--text-dim)">WATER QUALITY
+                        </div>
+                    </div>
+                    <div
+                        style="text-align:center;padding:16px;background:var(--bg-deep);border:1px solid var(--border)">
+                        <div style="font-size:1.8rem;margin-bottom:6px">🌡</div>
+                        <div style="font-family:'Orbitron';font-size:1.2rem;color:var(--accent-yellow)" id="pub-temp">
+                            --°C</div>
+                        <div style="font-family:'Times New Roman';font-size:0.65rem;color:var(--text-dim)">AMBIENT TEMP
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!--  TAB 5: MAINTENANCE & LOGISTICS                               -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="tab-maintenance" class="section">
+
+        <div id="title-maintenance" class="section-title">🔧 MAINTENANCE & LOGISTICS OPTIMIZER</div>
+
+        <div class="three-col mb16">
+            <div class="card">
+                <div class="card-header">Fleet Health Overview</div>
+                <div class="card-body">
+                    <div class="equipment-list" id="equipmentList"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">⚡ Energy Load Balancer <span class="badge badge-live">● LIVE</span></div>
+                <div class="card-body" id="energyPanel"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">🚂 FOIS Rake Tracker (Indian Railways)</div>
+                <div class="card-body" id="rakePanel"></div>
+            </div>
+        </div>
+
+        <!-- PdM DASHBOARD -->
+        <div class="card mb16">
+            <div class="card-header">
+                🤖 Predictive Maintenance Dashboard (PdM)
+                <span class="badge badge-cyan">IoT Vibration + Heat</span>
+            </div>
+            <div class="card-body">
+                <div class="three-col" id="pdmGauges"></div>
+            </div>
+        </div>
+
+        <!-- SUMMER HEATWAVE ALERT -->
+        <div class="card">
+            <div class="card-header">☀ Summer 2026 Heatwave Monitor // Grid Trip Prevention</div>
+            <div class="card-body">
+                <div class="two-col">
+                    <div>
+                        <div class="metric-row" style="margin-bottom:14px">
+                            <div class="metric-name">GRID LOAD</div>
+                            <div class="metric-bar-wrap">
+                                <div class="metric-bar-fill" id="grid-bar"
+                                    style="width:67%;background:var(--accent-yellow)"></div>
+                            </div>
+                            <div class="metric-val" id="grid-val" style="color:var(--accent-yellow)">67%</div>
+                        </div>
+                        <div class="metric-row" style="margin-bottom:14px">
+                            <div class="metric-name">VENTIL.</div>
+                            <div class="metric-bar-wrap">
+                                <div class="metric-bar-fill" id="vent-bar"
+                                    style="width:82%;background:var(--accent-orange)"></div>
+                            </div>
+                            <div class="metric-val" id="vent-val" style="color:var(--accent-orange)">82%</div>
+                        </div>
+                        <div class="metric-row">
+                            <div class="metric-name">PUMP SYS</div>
+                            <div class="metric-bar-wrap">
+                                <div class="metric-bar-fill" id="pump-bar"
+                                    style="width:45%;background:var(--accent-green)"></div>
+                            </div>
+                            <div class="metric-val" id="pump-val" style="color:var(--accent-green)">45%</div>
+                        </div>
+                    </div>
+                    <div style="font-family:'Times New Roman';font-size:0.75rem;color:var(--text-secondary)">
+                        <div
+                            style="padding:10px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.2);margin-bottom:8px">
+                            ⚠ HEATWAVE ADVISORY: Ambient temp +4°C above seasonal average. Recommend load shedding on
+                            non-critical circuits between 12:00–16:00 IST.
+                        </div>
+                        <div style="padding:10px;background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.2)">
+                            ✓ Load Balancer: AUTO mode active. Redistributing 18kW from ventilation to cooling systems.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!--  TAB 4: GPS ATLAS — INDIA COAL MINING ZONES                 -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div id="tab-gps" class="section">
+        <div id="title-gps" class="section-title">🗺 ALL INDIA MINING GPS ATLAS — REAL-TIME ZONE MONITORING</div>
+        <div class="gps-shell">
+            <aside id="gps-sidebar" class="gps-sidebar">
+                <div class="gps-sidebar-head">
+                    <div class="gps-sidebar-title" id="gps-sidebar-title">SATELLITE CONTROL DECK //</div>
+                    <button id="gpsSidebarToggle" class="gps-close" type="button">HIDE</button>
+                </div>
+                <div class="gps-section">
+                    <div class="gps-field">
+                        <label class="gps-label" id="gps-search-label" for="gps-search">SEARCH SITE //</label>
+                        <input id="gps-search" class="gps-input" list="gps-site-list"
+                            placeholder="Search Jharia, Korba, Singrauli...">
+                        <datalist id="gps-site-list"></datalist>
+                    </div>
+                </div>
+                <div class="gps-section">
+                    <div class="gps-status-card">
+                        <div class="k" id="gps-focus-site-label">FOCUS SITE //</div>
+                        <div class="v" id="gps-active-site">Gevra OC — SECL</div>
+                    </div>
+                    <div class="gps-status-card">
+                        <div class="k">INDIA FY26 PRODUCTION //</div>
+                        <div class="v" style="color:var(--accent-cyan)">921 MT / 970 MT Target</div>
+                    </div>
+                </div>
+                <div class="gps-section">
+                    <div
+                        style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--text-dim);margin-bottom:10px">
+                        QUICK-ZOOM COALFIELDS //</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px">
+                        <button class="gps-button btn-sm" onclick="leafletFlyTo(22.38,82.72,11,'Korba Coalfield')"
+                            style="font-size:0.65rem;padding:6px 10px">Korba</button>
+                        <button class="gps-button btn-sm" onclick="leafletFlyTo(24.19,82.67,11,'Singrauli Coalfield')"
+                            style="font-size:0.65rem;padding:6px 10px">Singrauli</button>
+                        <button class="gps-button btn-sm" onclick="leafletFlyTo(23.74,86.42,12,'Jharia Coalfield')"
+                            style="font-size:0.65rem;padding:6px 10px">Jharia</button>
+                        <button class="gps-button btn-sm" onclick="leafletFlyTo(20.95,85.23,11,'Talcher Coalfield')"
+                            style="font-size:0.65rem;padding:6px 10px">Talcher</button>
+                        <button class="gps-button btn-sm" onclick="leafletFlyTo(21.90,83.86,11,'IB Valley')"
+                            style="font-size:0.65rem;padding:6px 10px">IB Valley</button>
+                        <button class="gps-button btn-sm" onclick="leafletFlyTo(23.61,87.09,11,'Raniganj Coalfield')"
+                            style="font-size:0.65rem;padding:6px 10px">Raniganj</button>
+                    </div>
+                </div>
+            </aside>
+            <div class="gps-map-wrap" style="flex:1">
+                <div id="gps-map" style="height:720px;border-radius:20px;border:1px solid var(--border)"></div>
+                <div class="gps-map-legend"
+                    style="position:absolute;bottom:20px;left:20px;z-index:999;background:var(--bg-panel);padding:10px;border-radius:10px;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;color:var(--text-primary);border:1px solid var(--border)">
+                    <div style="display:flex;align-items:center;gap:5px"><span
+                            style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:50%"></span>
+                        High-Risk / Fire Zone</div>
+                    <div style="display:flex;align-items:center;gap:5px;margin-top:5px"><span
+                            style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:50%"></span>
+                        Operational Open-Cast</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+    <script>
+
+        // ================================================================
+        //  SOS AUDIO ALARM SYSTEM
+        // ================================================================
+        let audioCtx = null;
+        let sirenOsc = null;
+        let sirenGain = null;
+        let sirenInterval = null;
+
+        function startSOSAlarm() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                if (sirenGain) return; // already playing
+
+                sirenGain = audioCtx.createGain();
+                sirenGain.connect(audioCtx.destination);
+                sirenGain.gain.value = 0.5;
+
+                sirenOsc = audioCtx.createOscillator();
+                sirenOsc.type = 'square';
+                sirenOsc.connect(sirenGain);
+                sirenOsc.start();
+
+                let high = true;
+                sirenInterval = setInterval(() => {
+                    if (sirenOsc) {
+                        sirenOsc.frequency.setValueAtTime(high ? 800 : 400, audioCtx.currentTime);
+                        high = !high;
+                    }
+                }, 500);
+            } catch (e) {
+                console.warn("Audio context failed or blocked by browser.", e);
+            }
+        }
+
+        function stopSOSAlarm() {
+            if (sirenOsc) { sirenOsc.stop(); sirenOsc.disconnect(); sirenOsc = null; }
+            if (sirenInterval) { clearInterval(sirenInterval); sirenInterval = null; }
+            if (sirenGain) { sirenGain.disconnect(); sirenGain = null; }
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+
+        function hideEmergencyModal() {
+            document.getElementById('emergency-overlay').style.display = 'none';
+            stopSOSAlarm();
+        }
+
+        function startVoiceAlert(reason) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const msg = new SpeechSynthesisUtterance(`Emergency Alert. ${reason}. Evacuate immediately.`);
+                msg.rate = 0.9;
+                window.speechSynthesis.speak(msg);
+            }
+        }
+
+        function triggerManualSOS() {
+            if (typeof addLog === 'function') addLog("🚨 MANUAL SOS INITIATED BY OPERATOR", "danger");
+            const overlay = document.getElementById('emergency-overlay');
+            const reasonEl = document.getElementById('emergency-reason');
+            if (overlay && reasonEl) {
+                reasonEl.textContent = "HAZARD: MANUAL SOS ALARM TRIGGERED";
+                overlay.style.display = 'flex';
+                startSOSAlarm();
+                startVoiceAlert("Manual SOS Triggered. All personnel evacuate.");
+            }
+        }
+
+        // ================================================================
+        //  GLOBAL STATE
+        // ================================================================
+        let port, writer, reader;
+        let liveHardwareConnected = false;
+        let lastHardwareSeen = 0;
+        let peaks = { temp: 0, hum: 0, mq4: 0, mq135: 0, water: 500 };
+        let currentStatus = "OFFLINE";
+        let history = { temp: [], hum: [], mq4: [], mq135: [], water: [] };
+        let prevHistory = { temp: 0, hum: 0, mq4: 0, mq135: 0 };
+        let incidentCount = 0;
+        let liveData = null;
+        var currentLang = 'en';
+
+        function renderDisconnectedState() {
+            ['temp', 'hum', 'mq4', 'mq135', 'water', 'p-temp', 'p-hum', 'p-mq4', 'p-mq135', 'p-water'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = id.startsWith('p-') ? (id === 'p-water' ? '500' : '0') : '--';
+            });
+            ['bar-temp', 'bar-hum', 'bar-mq4', 'bar-mq135'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.width = '0%';
+                    el.style.background = 'var(--accent-cyan)';
+                }
+            });
+            const waterBar = document.getElementById('bar-water');
+            if (waterBar) {
+                waterBar.style.width = '100%';
+                waterBar.style.background = 'var(--accent-green)';
+            }
+            ['sc-temp', 'sc-hum', 'sc-mq4', 'sc-mq135', 'sc-water'].forEach(id => colorCard(id, ''));
+            const sb = document.getElementById('status-banner');
+            const badge = document.getElementById('global-status-badge');
+            if (sb) {
+                sb.textContent = '◈ WAITING FOR SERIAL PORT // NO LIVE DATA ◈';
+                sb.className = '';
+            }
+            if (badge) {
+                badge.textContent = 'OFFLINE';
+                badge.className = '';
+            }
+            const cd = document.getElementById('countdown-value');
+            const ha = document.getElementById('hazard-action');
+            if (cd) {
+                cd.textContent = '--';
+                cd.style.fontSize = '3.4rem';
+            }
+            if (ha) ha.textContent = 'Connect the serial port to stream live telemetry.';
+            const riskEl = document.getElementById('ai-risk-score');
+            if (riskEl) {
+                riskEl.textContent = 'WAITING';
+                riskEl.style.color = 'var(--text-dim)';
+            }
+            ['ai-ch4-trend', 'ai-co-trend', 'ai-temp-trend', 'ai-flood'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = '--';
+                    el.style.color = 'var(--text-dim)';
+                }
+            });
+            const pubAir = document.getElementById('pub-air');
+            if (pubAir) {
+                pubAir.textContent = '--';
+                pubAir.style.color = 'var(--text-dim)';
+            }
+            const pubWater = document.getElementById('pub-water');
+            if (pubWater) {
+                pubWater.textContent = '--';
+                pubWater.style.color = 'var(--text-dim)';
+            }
+            const pubTemp = document.getElementById('pub-temp');
+            if (pubTemp) pubTemp.textContent = '--°C';
+            ['rpt-ch4', 'rpt-co', 'rpt-temp', 'rpt-inc'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '--';
+            });
+            const rptStatus = document.getElementById('rpt-status');
+            if (rptStatus) {
+                rptStatus.textContent = 'WAITING';
+                rptStatus.style.color = 'var(--text-dim)';
+            }
+            const nodeGrid = document.getElementById('nodeGrid');
+            const visibilityMatrix = document.getElementById('visibilityMatrix');
+            [nodeGrid, visibilityMatrix].forEach(grid => {
+                if (!grid) return;
+                grid.innerHTML = nodes.map(n => `
+      <div class="node-card ${n.status}">
+        <div class="node-name">${n.name}</div>
+        <div class="node-status" style="color:${n.status === 'online' ? 'var(--accent-green)' : n.status === 'alert' ? 'var(--accent-orange)' : 'var(--text-dim)'}">WAITING</div>
+        <div class="node-vals">${n.zone}<br>CH₄: -- ppm</div>
+      </div>`).join('');
+            });
+        }
+
+        // ================================================================
+        //  CLOCK
+        // ================================================================
+        setInterval(() => {
+            const n = new Date();
+            const dateOptions = { day: '2-digit', month: 'long', year: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            document.getElementById('live-clock').textContent = n.toLocaleDateString('en-IN', dateOptions) + ' | ' + n.toLocaleTimeString('en-IN', timeOptions);
+            document.getElementById('rpt-time').textContent = n.toLocaleString('en-IN');
+            if (liveData) document.getElementById('pub-temp').textContent = liveData.temp.toFixed(1) + '°C';
+        }, 1000);
+
+        // ================================================================
+        //  TAB SWITCHING
+        // ================================================================
+        function switchTab(name) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            event.currentTarget.classList.add('active');
+            if (name === 'gps') renderGPSAtlas();
+        }
+
+        // ================================================================
+        //  SERIAL STATE
+        // ================================================================
+        // ================================================================
+        //  SERIAL PORT
+        // ================================================================
+        document.getElementById('connectBtn').onclick = async () => {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                if (port.writable) writer = port.writable.getWriter();
+                document.getElementById('connectBtn').style.display = "none";
+                addLog("◈ Data connection established. Receiving telemetry...", "info");
+                readData();
+            } catch (e) {
+                addLog("Serial connection unavailable. Live telemetry requires a compatible browser and connected device.", "warn");
+            }
+        };
+
+        async function sendCmd(char) {
+            if (writer) {
+                try { await writer.write(new TextEncoder().encode(char)); } catch (e) { }
+            }
+            if (char === 'D') addLog("OPERATOR ACTION: EMERGENCY SIREN!", "danger");
+            if (char === 'C') addLog("OPERATOR ACTION: MANUAL CAUTION.", "warn");
+            if (char === 'R') addLog("OPERATOR ACTION: SYSTEM RESET.", "info");
+        }
+
+        const BACKEND = 'http://localhost:3000';
+
+        async function postAction(actionCode, reason = '') {
+            try {
+                await fetch(BACKEND + '/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: actionCode, operator: 'OPERATOR', reason })
+                });
+            } catch(e) {
+                // server not running — silently ignore
+            }
+        }
+
+        document.getElementById('btnCaution').onclick = () => {
+            sendCmd('C');
+            postAction('C', 'Manual caution triggered by operator');
+        };
+
+        document.getElementById('btnDanger').onclick = () => {
+            sendCmd('D');
+            recordIncident("MANUAL EMERGENCY SIREN — OPERATOR");
+            postAction('D', 'Emergency siren triggered by operator');
+        };
+
+        document.getElementById('btnReset').onclick = () => {
+            sendCmd('R');
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('incidentList').innerHTML = '<div id="noIncidentMsg" style="color:var(--text-dim);font-style:italic;font-family:\'IBM Plex Mono\', monospace;font-size:0.75rem;padding:8px 0">No critical incidents recorded.</div>';
+            peaks = { temp: 0, hum: 0, mq4: 0, mq135: 0, water: 500 };
+            ['temp', 'hum', 'mq4', 'mq135'].forEach(k => document.getElementById('p-' + k).textContent = '0');
+            document.getElementById('p-water').textContent = '500';
+            incidentCount = 0;
+            addLog("◈ SYSTEM RESET: Logs, incidents, and peak memory cleared.", "info");
+            postAction('R', 'System reset by operator');
+        };
+
+        async function readData() {
+            const dec = new TextDecoderStream();
+            port.readable.pipeTo(dec.writable);
+            reader = dec.readable.getReader();
+            let buf = "";
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                if (value) {
+                    buf += value;
+                    let lines = buf.split('\n');
+                    buf = lines.pop();   // last partial line stays in buffer
+                    for (let line of lines) {
+                        line = line.trim();
+                        if (line.startsWith("{") && line.endsWith("}")) {
+                            try {
+                                const d = JSON.parse(line);
+                                liveHardwareConnected = true;
+                                lastHardwareSeen = Date.now();
+                                updateUI(d);
+                            } catch (er) {
+                                addLog("Parse error: " + line.substring(0, 60), "warn");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ================================================================
+        //  UI UPDATER
+        // ================================================================
+        function updateUI(data) {
+            // Field aliases — hardware sends temperature/humidity/ch4/aqi,
+            // simulation sends temp/hum/mq4/mq135. Accept both.
+            const t = parseFloat(data.temperature ?? data.temp) || 0;
+            const h = parseFloat(data.humidity ?? data.hum) || 0;
+            const m4 = parseFloat(data.ch4 ?? data.mq4) || 0;
+            const m135 = parseFloat(data.aqi ?? data.mq135) || 0;
+            const w = parseFloat(data.water) || 0;
+            liveData = { temp: t, hum: h, mq4: m4, mq135: m135, water: w };
+
+            // Update displays
+            document.getElementById('temp').textContent = t.toFixed(1);
+            document.getElementById('hum').textContent = h.toFixed(1);
+            document.getElementById('mq4').textContent = Math.round(m4);
+            document.getElementById('mq135').textContent = Math.round(m135);
+            document.getElementById('water').textContent = Math.round(w);
+
+            // Bars
+            setBar('bar-temp', t, 0, 60);
+            setBar('bar-hum', h, 0, 100);
+            setBar('bar-mq4', m4, 0, 5000);
+            setBar('bar-mq135', m135, 0, 5000);
+            setBar('bar-water', w, 0, 400, true);
+
+            // Peaks
+            if (t > peaks.temp) { peaks.temp = t; document.getElementById('p-temp').textContent = t.toFixed(1); }
+            if (h > peaks.hum) { peaks.hum = h; document.getElementById('p-hum').textContent = h.toFixed(1); }
+            if (m4 > peaks.mq4) { peaks.mq4 = m4; document.getElementById('p-mq4').textContent = Math.round(m4); }
+            if (m135 > peaks.mq135) { peaks.mq135 = m135; document.getElementById('p-mq135').textContent = Math.round(m135); }
+            if (w < peaks.water) { peaks.water = w; document.getElementById('p-water').textContent = Math.round(w); }
+
+            // History for sparklines (use mapped values, not raw data[k])
+            history.temp.push(t); if (history.temp.length > 60) history.temp.shift();
+            history.hum.push(h); if (history.hum.length > 60) history.hum.shift();
+            history.mq4.push(m4); if (history.mq4.length > 60) history.mq4.shift();
+            history.mq135.push(m135); if (history.mq135.length > 60) history.mq135.shift();
+            history.water.push(w); if (history.water.length > 60) history.water.shift();
+            prevHistory = { temp: t, hum: h, mq4: m4, mq135: m135 };
+
+            // Sensor card coloring — prefer hardware's per-hazard flags when present
+            const fireDanger = data.fire === true;
+            const fireWarn = data.fire_warn === true;
+            const gasDanger = data.gas === true;
+            const gasWarn = data.gas_warn === true;
+            const floodDanger = data.flood === true;
+            const floodWarn = data.flood_warn === true;
+
+            if (data.status !== undefined) {
+                colorCard('sc-temp', fireDanger ? 'crit' : fireWarn ? 'warn' : '');
+                colorCard('sc-hum', '');
+                colorCard('sc-mq4', gasDanger ? 'crit' : gasWarn ? 'warn' : '');
+                colorCard('sc-mq135', gasDanger ? 'crit' : gasWarn ? 'warn' : '');
+                colorCard('sc-water', floodDanger ? 'crit' : floodWarn ? 'warn' : '');
+            } else {
+                colorCard('sc-temp', t > 48 ? 'crit' : t > 40 ? 'warn' : '');
+                colorCard('sc-hum', h > 90 ? 'crit' : h > 80 ? 'warn' : '');
+                colorCard('sc-mq4', m4 > 3000 ? 'crit' : m4 > 1800 ? 'warn' : '');
+                colorCard('sc-mq135', m135 > 3000 ? 'crit' : m135 > 1800 ? 'warn' : '');
+                colorCard('sc-water', w < 20 ? 'crit' : w < 45 ? 'warn' : '');
+            }
+
+            // Status logic — use hardware's pre-computed status if it sent one
+            let newStatus = "SAFE", alertReason = "";
+            if (data.status) {
+                if (data.status === "DANGER") {
+                    newStatus = "DANGER";
+                    alertReason = (data.cause || "Hazard").replace(/!/g, '').trim();
+                } else if (data.status === "WARNING" || data.status === "CAUTION") {
+                    newStatus = "CAUTION";
+                    alertReason = (data.cause || "Caution").replace(/!/g, '').trim();
+                }
+            } else {
+                if (m4 >= 12500 || m135 >= 50 || t >= 33.5 || h > 95 || w < 20) {
+                    newStatus = "DANGER";
+                    alertReason = m4 >= 12500 ? "Extreme Methane (>1.25%)" : m135 >= 50 ? "Extreme CO (>50PPM)" : t >= 33.5 ? "Critical Temp (>33.5C)" : h > 95 ? "Critical Humidity" : "Severe Flood";
+                } else if (m4 >= 7500 || m135 >= 30 || t >= 30 || h > 85 || (w >= 20 && w < 45)) {
+                    newStatus = "CAUTION";
+                    alertReason = m4 >= 7500 ? "Elevated Methane" : m135 >= 30 ? "Elevated CO" : t >= 30 ? "Rising Temp" : h > 85 ? "Rising Humidity" : "Rising Water";
+                }
+            }
+
+            const sb = document.getElementById('status-banner');
+            const badge = document.getElementById('global-status-badge');
+            if (newStatus === "DANGER") {
+                sb.textContent = "◈ CRITICAL EMERGENCY — " + alertReason.toUpperCase() + " ◈";
+                sb.className = "danger"; badge.textContent = "DANGER"; badge.className = "danger";
+            } else if (newStatus === "CAUTION") {
+                sb.textContent = "◈ CAUTION REQUIRED — " + alertReason.toUpperCase() + " ◈";
+                sb.className = "caution"; badge.textContent = "CAUTION"; badge.className = "caution";
+            } else {
+                sb.textContent = "◈ ALL SYSTEMS NOMINAL // MINEGUARD ACTIVE ◈";
+                sb.className = ""; badge.textContent = "NOMINAL"; badge.className = "";
+            }
+
+            if (currentStatus !== newStatus) {
+                if (newStatus === "DANGER") {
+                    addLog("🚨 CRITICAL DANGER: " + alertReason, "danger");
+                    recordIncident(alertReason);
+                    const overlay = document.getElementById('emergency-overlay');
+                    const reasonEl = document.getElementById('emergency-reason');
+                    if (overlay && reasonEl) {
+                        reasonEl.textContent = "HAZARD: " + alertReason.toUpperCase();
+                        overlay.style.display = 'flex';
+                        startSOSAlarm();
+                        startVoiceAlert(alertReason);
+                    }
+                }
+                else if (newStatus === "CAUTION") {
+                    addLog("⚠ CAUTION: " + alertReason, "warn");
+                }
+                else {
+                    addLog("✓ RECOVERY: All parameters nominal.", "info");
+                    const overlay = document.getElementById('emergency-overlay');
+                    if (overlay) {
+                        overlay.style.display = 'none';
+                        stopSOSAlarm();
+                    }
+                }
+                currentStatus = newStatus;
+            }
+
+            updatePredictive(t, h, m4, m135, w);
+            updateReport(m4, m135, t);
+            drawSparkline();
+            updatePublicMetrics(m4, m135);
+            renderNodes();
+        }
+
+        function setBar(id, val, min, max, invert = false) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            let pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+            if (invert) pct = 100 - pct;
+            el.style.width = pct + '%';
+            if (pct > 80) el.style.background = 'var(--accent-red)';
+            else if (pct > 60) el.style.background = 'var(--accent-orange)';
+            else el.style.background = 'var(--accent-cyan)';
+        }
+
+        function colorCard(id, cls) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.className = 'sensor-card ' + (cls || '');
+        }
+
+        // ================================================================
+        //  LOG
+        // ================================================================
+        function addLog(msg, type = "normal") {
+            const log = document.getElementById('log');
+            const div = document.createElement('div');
+            div.className = 'log-' + type;
+            div.textContent = '[' + new Date().toLocaleTimeString('en-IN') + '] ' + msg;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function recordIncident(reason) {
+            const list = document.getElementById('incidentList');
+            const noMsg = document.getElementById('noIncidentMsg');
+            if (noMsg) noMsg.remove();
+            incidentCount++;
+            const item = document.createElement('div');
+            item.className = 'incident-item';
+            item.innerHTML = '<span class="incident-time">[' + new Date().toLocaleTimeString('en-IN') + ']</span> ' + reason;
+            list.prepend(item);
+            document.getElementById('rpt-inc').textContent = incidentCount;
+        }
+
+        // ================================================================
+        //  PREDICTIVE ENGINE
+        // ================================================================
+        let rateHistory = { mq4: [], mq135: [], temp: [], hum: [] };
+        let lastVals = { mq4: 0, mq135: 0, temp: 0, hum: 0 };
+
+        function updatePredictive(t, h, m4, m135, w) {
+            // Rate calc (PPM per cycle)
+            const rates = {
+                mq4: m4 - lastVals.mq4,
+                mq135: m135 - lastVals.mq135,
+                temp: t - lastVals.temp,
+                hum: h - lastVals.hum
+            };
+
+            Object.keys(rates).forEach(k => {
+                rateHistory[k].push(rates[k]);
+                if (rateHistory[k].length > 10) rateHistory[k].shift();
+            });
+            lastVals = { mq4: m4, mq135: m135, temp: t, hum: h };
+
+            // Moving average
+            const avgRate = k => rateHistory[k].reduce((a, b) => a + b, 0) / (rateHistory[k].length || 1);
+            const rCH4 = avgRate('mq4'), rCO = avgRate('mq135'), rT = avgRate('temp'), rH = avgRate('hum');
+
+            // Display rates
+            document.getElementById('rate-ch4').textContent = (rCH4 >= 0 ? '+' : '') + rCH4.toFixed(1);
+            document.getElementById('rate-co').textContent = (rCO >= 0 ? '+' : '') + rCO.toFixed(1);
+            document.getElementById('rate-temp').textContent = (rT >= 0 ? '+' : '') + rT.toFixed(2);
+            document.getElementById('rate-hum').textContent = (rH >= 0 ? '+' : '') + rH.toFixed(2);
+
+            setRateBar('rate-bar-ch4', rCH4, 20);
+            setRateBar('rate-bar-co', rCO, 20);
+            setRateBar('rate-bar-temp', rT, 2);
+            setRateBar('rate-bar-hum', rH, 2);
+
+            // Time to hazard calc based on DGMS 2017
+            let minTime = Infinity, hazardParam = null;
+            const CH4_LIMIT = 12500; // 1.25% DGMS Limit
+            const CO_LIMIT = 50;     // 50 PPM DGMS Limit
+            const T_LIMIT = 33.5;    // 33.5°C DGMS Wet Bulb Limit
+
+            if (m4 >= CH4_LIMIT) { minTime = 0; hazardParam = "CH₄"; }
+            else if (rCH4 > 0) { const t2h = (CH4_LIMIT - m4) / rCH4; if (t2h > 0 && t2h < minTime) { minTime = t2h; hazardParam = "CH₄"; } }
+
+            if (m135 >= CO_LIMIT && minTime > 0) { minTime = 0; hazardParam = "CO"; }
+            else if (rCO > 0) { const t2h = (CO_LIMIT - m135) / rCO; if (t2h > 0 && t2h < minTime) { minTime = t2h; hazardParam = "CO"; } }
+
+            if (t >= T_LIMIT && minTime > 0) { minTime = 0; hazardParam = "TEMP"; }
+            else if (rT > 0) { const t2h = (T_LIMIT - t) / rT; if (t2h > 0 && t2h < minTime) { minTime = t2h; hazardParam = "TEMP"; } }
+
+            const cd = document.getElementById('countdown-value');
+            const ha = document.getElementById('hazard-action');
+            const hb = document.getElementById('hazardBox');
+
+            if (minTime === 0) {
+                cd.textContent = '00:00';
+                cd.style.fontSize = '3.5rem';
+                cd.style.color = 'var(--accent-red)';
+                ha.textContent = `🚨 DGMS LIMIT BREACHED (${hazardParam}). EVACUATE IMMEDIATELY.`;
+                hb.style.borderColor = 'var(--accent-red)';
+            } else if (hazardParam && minTime < Infinity && minTime < 600) {
+                const mins = Math.floor(minTime * 2 / 60), secs = Math.round((minTime * 2) % 60);
+                cd.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+                cd.style.fontSize = '3.5rem';
+                cd.style.color = mins < 5 ? 'var(--accent-red)' : 'var(--accent-orange)';
+                ha.textContent = `⚠ DGMS Threshold (${hazardParam}) in ~${mins} min. Initiate Ventilation.`;
+                hb.style.borderColor = mins < 5 ? 'var(--accent-red)' : 'var(--accent-orange)';
+            } else {
+                cd.textContent = 'SAFE';
+                cd.style.fontSize = '2.5rem';
+                cd.style.color = 'var(--accent-green)';
+                ha.textContent = 'All parameters stable within DGMS Reg 2017 limits.';
+                hb.style.borderColor = 'var(--accent-green)';
+            }
+
+            // AI assessment based on DGMS 2017
+            const risk = (m4 >= CH4_LIMIT || m135 >= CO_LIMIT || t >= T_LIMIT) ? "CRITICAL" :
+                (m4 > 7500 || m135 > 30 || t > 30) ? "HIGH" :
+                    (m4 > 3000 || m135 > 15 || t > 28) ? "MEDIUM" : "LOW";
+            const riskEl = document.getElementById('ai-risk-score');
+            riskEl.textContent = risk;
+            riskEl.style.color = risk === "CRITICAL" ? 'var(--accent-red)' : risk === "HIGH" ? 'var(--accent-orange)' : risk === "MEDIUM" ? 'var(--accent-yellow)' : 'var(--accent-green)';
+
+            setTrend('ai-ch4-trend', rCH4, 3, 8);
+            setTrend('ai-co-trend', rCO, 3, 8);
+            setTrend('ai-temp-trend', rT, 0.2, 0.5);
+            document.getElementById('ai-flood').textContent = w < 40 ? 'HIGH' : w < 80 ? 'MEDIUM' : 'LOW';
+            document.getElementById('ai-flood').style.color = w < 40 ? 'var(--accent-red)' : w < 80 ? 'var(--accent-orange)' : 'var(--accent-green)';
+        }
+
+        function setRateBar(id, rate, max) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const pct = Math.max(0, Math.min(100, Math.abs(rate) / max * 100));
+            el.style.width = pct + '%';
+        }
+
+        function setTrend(id, rate, warnThresh, critThresh) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (rate > critThresh) { el.textContent = 'RISING FAST ↑↑'; el.style.color = 'var(--accent-red)'; }
+            else if (rate > warnThresh) { el.textContent = 'RISING ↑'; el.style.color = 'var(--accent-orange)'; }
+            else if (rate < -warnThresh) { el.textContent = 'FALLING ↓'; el.style.color = 'var(--accent-cyan)'; }
+            else { el.textContent = 'STABLE ─'; el.style.color = 'var(--accent-green)'; }
+        }
+
+        // ================================================================
+        //  SPARKLINE CHART
+        // ================================================================
+        function drawSparkline() {
+            const c = document.getElementById('sparkCanvas');
+            if (!c) return;
+            c.width = c.parentElement.offsetWidth - 32;
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, c.width, c.height);
+
+            const W = c.width, H = c.height;
+            ctx.strokeStyle = 'rgba(6,182,212,0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 6; i++) {
+                const y = i * (H / 5);
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+            }
+
+            drawLine(ctx, history.mq4.map(v => v / 10), 0, 500, W, H, '#06b6d4', 2);
+            drawLine(ctx, history.mq135.map(v => v / 10), 0, 500, W, H, '#f97316', 2);
+            drawLine(ctx, history.temp, 0, 80, W, H, '#eab308', 1.5);
+            drawLine(ctx, history.hum, 0, 100, W, H, '#a78bfa', 1.5);
+        }
+
+        function drawLine(ctx, data, min, max, W, H, color, lw) {
+            if (data.length < 2) return;
+            ctx.strokeStyle = color; ctx.lineWidth = lw;
+            ctx.beginPath();
+            data.forEach((v, i) => {
+                const x = (i / (data.length - 1)) * W;
+                const y = H - ((v - min) / (max - min)) * H;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Glow
+            ctx.strokeStyle = color + '55'; ctx.lineWidth = lw * 3;
+            ctx.beginPath();
+            data.forEach((v, i) => {
+                const x = (i / (data.length - 1)) * W;
+                const y = H - ((v - min) / (max - min)) * H;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        // ================================================================
+        //  NODE NETWORK
+        // ================================================================
+        const nodes = [
+            { id: 'A1', name: 'SHAFT-A1', zone: 'Level 1', status: 'online' },
+            { id: 'A2', name: 'SHAFT-A2', zone: 'Level 1', status: 'online' },
+            { id: 'B1', name: 'SHAFT-B1', zone: 'Level 2', status: 'alert' },
+            { id: 'B2', name: 'SHAFT-B2', zone: 'Level 2', status: 'online' },
+            { id: 'C1', name: 'GALLERY-C', zone: 'Level 3', status: 'online' },
+            { id: 'D1', name: 'SUMP-D1', zone: 'Level 3', status: 'online' },
+            { id: 'E1', name: 'VENTIL-E', zone: 'Surface', status: 'online' },
+            { id: 'F1', name: 'REMOTE-F', zone: 'Remote', status: 'offline' },
+        ];
+
+        function renderNodes() {
+            ['nodeGrid', 'visibilityMatrix'].forEach(gid => {
+                const g = document.getElementById(gid);
+                if (!g) return;
+                g.innerHTML = nodes.map(n => `
+      <div class="node-card ${n.status}">
+        <div class="node-name">${n.name}</div>
+        <div class="node-status" style="color:${n.status === 'online' ? 'var(--accent-green)' : n.status === 'alert' ? 'var(--accent-orange)' : 'var(--text-dim)'}">${n.status.toUpperCase()}</div>
+        <div class="node-vals">${n.zone}<br>
+          CH₄: ${liveData ? Math.round(liveData.mq4 * (0.7 + 0.1 * Math.sin(Date.now() / 1500))) : '--'} ppm
+        </div>
+      </div>`).join('');
+            });
+        }
+        renderNodes();
+        renderDisconnectedState();
+
+        // ================================================================
+        //  SECTOR STATUS (for digital twin tab)
+        // ================================================================
+        function renderSectorStatus() {
+            const el = document.getElementById('sector-status-list');
+            if (!el) return;
+            const sectors = [
+                { name: 'Sector A — Level 1', status: 'SAFE', color: 'var(--accent-green)', workers: 4 },
+                { name: 'Sector B — Level 2', status: 'CAUTION', color: 'var(--accent-orange)', workers: 6 },
+                { name: 'Sector C — Level 3', status: 'SAFE', color: 'var(--accent-green)', workers: 2 },
+                { name: 'Sector D — Sump', status: 'SAFE', color: 'var(--accent-green)', workers: 1 },
+                { name: 'Sector E — Ventilation', status: 'SAFE', color: 'var(--accent-green)', workers: 0 },
+                { name: 'Sector F — Remote', status: 'OFFLINE', color: 'var(--text-dim)', workers: 0 },
+            ];
+            el.innerHTML = sectors.map(s => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-family:'Times New Roman';font-size:0.75rem">
+      <div>${s.name}</div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="color:var(--text-dim)">👷 ${s.workers}</div>
+        <span class="status-pill ${s.status === 'SAFE' ? 'pill-ok' : s.status === 'CAUTION' ? 'pill-warn' : 'pill-crit'}">${s.status}</span>
+      </div>
+    </div>`).join('');
+
+            const pl = document.getElementById('personnel-list');
+            if (pl) pl.innerHTML = `
+    <div style="color:var(--text-dim);margin-bottom:8px;letter-spacing:2px;font-size:0.65rem">ACTIVE PERSONNEL</div>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border)">👷 Ravi Kumar — Sector A, Level 1 <span style="color:var(--accent-green)">SAFE</span></div>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border)">👷 Amit Sharma — Sector B, Level 2 <span style="color:var(--accent-orange)">CAUTION ZONE</span></div>
+    <div style="padding:6px 0;border-bottom:1px solid var(--border)">👷 Deepak Singh — Sector A, Level 1 <span style="color:var(--accent-green)">SAFE</span></div>
+    <div style="padding:6px 0">👷 Priya Das — Surface Control <span style="color:var(--accent-green)">SAFE</span></div>`;
+        }
+        renderSectorStatus();
+
+        // ================================================================
+        // ================================================================
+        //  GPS ATLAS - INDIA COAL MINING ZONES (LEAFLET.JS)
+        // ================================================================
+        let leafletMap = null;
+        let markersGroup = null;
+
+        const coalMiningSites = [
+            // --- COAL MINES ---
+            { id: 'gevra', name: 'Gevra OC (SECL)', risk: 85, workers: 450, lat: 22.3800, lng: 82.7200, type: 'opencast', target: 50.0, actual: 47.8, subsidiary: 'SECL - Coal' },
+            { id: 'dipka', name: 'Dipka OC (SECL)', risk: 70, workers: 320, lat: 22.3400, lng: 82.6800, type: 'opencast', target: 40.0, actual: 39.2, subsidiary: 'SECL - Coal' },
+            { id: 'kusmunda', name: 'Kusmunda OC (SECL)', risk: 65, workers: 280, lat: 22.3600, lng: 82.7500, type: 'opencast', target: 38.0, actual: 36.5, subsidiary: 'SECL - Coal' },
+            { id: 'jayant', name: 'Jayant OC (NCL)', risk: 72, workers: 410, lat: 24.1400, lng: 82.7000, type: 'opencast', target: 35.0, actual: 31.2, subsidiary: 'NCL - Coal' },
+            { id: 'nigahi', name: 'Nigahi OC (NCL)', risk: 68, workers: 380, lat: 24.1997, lng: 82.6725, type: 'opencast', target: 22.0, actual: 20.1, subsidiary: 'NCL - Coal' },
+            { id: 'jharia', name: 'Jharia Coalfield (Fire)', risk: 95, workers: 182, lat: 23.7447, lng: 86.4197, type: 'highrisk', target: 0, actual: 0, subsidiary: 'BCCL - Coal' },
+            { id: 'talcher', name: 'Talcher Coalfield', risk: 55, workers: 203, lat: 20.9515, lng: 85.2336, type: 'opencast', target: 20.0, actual: 18.7, subsidiary: 'MCL - Coal' },
+            { id: 'ib-valley', name: 'Ib Valley (MCL)', risk: 45, workers: 156, lat: 21.9090, lng: 83.8640, type: 'opencast', target: 19.0, actual: 17.2, subsidiary: 'MCL - Coal' },
+            { id: 'raniganj', name: 'Raniganj Coalfield', risk: 80, workers: 110, lat: 23.6080, lng: 87.0960, type: 'highrisk', target: 15.0, actual: 12.5, subsidiary: 'ECL - Coal' },
+            { id: 'ramagundam', name: 'Ramagundam OC', risk: 62, workers: 210, lat: 18.7500, lng: 79.4800, type: 'opencast', target: 18.5, actual: 16.9, subsidiary: 'SCCL - Coal' },
+            { id: 'neyveli', name: 'Neyveli Lignite', risk: 40, workers: 500, lat: 11.5976, lng: 79.4880, type: 'opencast', target: 25.0, actual: 23.5, subsidiary: 'NLC - Lignite' },
+
+            // --- IRON ORE ---
+            { id: 'bailadila', name: 'Bailadila Iron Ore', risk: 30, workers: 600, lat: 18.7291, lng: 81.2331, type: 'opencast', target: 35.0, actual: 34.1, subsidiary: 'NMDC - Iron' },
+            { id: 'kudremukh', name: 'Kudremukh (Closed)', risk: 10, workers: 0, lat: 13.2017, lng: 75.2530, type: 'highrisk', target: 0, actual: 0, subsidiary: 'KIOCL - Iron' },
+            { id: 'donimalai', name: 'Donimalai Iron', risk: 45, workers: 250, lat: 15.0650, lng: 76.6186, type: 'opencast', target: 7.0, actual: 6.8, subsidiary: 'NMDC - Iron' },
+            { id: 'noamundi', name: 'Noamundi Iron Mine', risk: 35, workers: 300, lat: 22.1481, lng: 85.5262, type: 'opencast', target: 10.0, actual: 9.5, subsidiary: 'Tata Steel - Iron' },
+            { id: 'joda', name: 'Joda East Iron', risk: 40, workers: 320, lat: 22.0167, lng: 85.4333, type: 'opencast', target: 12.0, actual: 11.8, subsidiary: 'Tata Steel - Iron' },
+            { id: 'chiria', name: 'Chiria Iron Ore', risk: 38, workers: 150, lat: 22.3025, lng: 85.2676, type: 'opencast', target: 5.0, actual: 4.2, subsidiary: 'SAIL - Iron' },
+
+            // --- COPPER ---
+            { id: 'khetri', name: 'Khetri Copper Complex', risk: 60, workers: 400, lat: 28.0033, lng: 75.7951, type: 'underground', target: 2.0, actual: 1.8, subsidiary: 'HCL - Copper' },
+            { id: 'malanjkhand', name: 'Malanjkhand Copper', risk: 55, workers: 450, lat: 22.0232, lng: 80.7107, type: 'opencast', target: 2.5, actual: 2.3, subsidiary: 'HCL - Copper' },
+            { id: 'surda', name: 'Surda Copper Mine', risk: 75, workers: 200, lat: 22.6106, lng: 86.4358, type: 'underground', target: 1.0, actual: 0.9, subsidiary: 'HCL - Copper' },
+
+            // --- GOLD ---
+            { id: 'hutti', name: 'Hutti Gold Mines', risk: 65, workers: 500, lat: 16.1950, lng: 76.6560, type: 'underground', target: 0.002, actual: 0.0018, subsidiary: 'HGML - Gold' },
+            { id: 'kolar', name: 'KGF (Closed)', risk: 80, workers: 0, lat: 12.9602, lng: 78.2721, type: 'highrisk', target: 0, actual: 0, subsidiary: 'BGML - Gold' },
+
+            // --- URANIUM ---
+            { id: 'jaduguda', name: 'Jaduguda Uranium', risk: 85, workers: 300, lat: 22.6455, lng: 86.3533, type: 'underground', target: 0.5, actual: 0.48, subsidiary: 'UCIL - Uranium' },
+            { id: 'tummalapalle', name: 'Tummalapalle Uranium', risk: 70, workers: 250, lat: 14.3160, lng: 78.2690, type: 'underground', target: 0.8, actual: 0.75, subsidiary: 'UCIL - Uranium' },
+
+            // --- DIAMOND & GEMS ---
+            { id: 'panna', name: 'Panna Diamond Mine', risk: 40, workers: 100, lat: 24.7171, lng: 80.1983, type: 'opencast', target: 0.0001, actual: 0.00008, subsidiary: 'NMDC - Diamond' },
+
+            // --- ZINC & LEAD ---
+            { id: 'rampur_agucha', name: 'Rampur Agucha Zinc', risk: 50, workers: 550, lat: 25.8340, lng: 74.7390, type: 'underground', target: 6.0, actual: 5.8, subsidiary: 'HZL - Zinc/Lead' },
+            { id: 'sindesar_khurd', name: 'Sindesar Khurd', risk: 60, workers: 400, lat: 25.0310, lng: 74.1500, type: 'underground', target: 4.5, actual: 4.3, subsidiary: 'HZL - Zinc/Lead' },
+            { id: 'zawar', name: 'Zawar Mines', risk: 65, workers: 350, lat: 24.3541, lng: 73.7143, type: 'underground', target: 3.5, actual: 3.2, subsidiary: 'HZL - Zinc/Lead' },
+
+            // --- BAUXITE ---
+            { id: 'panchpatmali', name: 'Panchpatmali Bauxite', risk: 35, workers: 200, lat: 18.8475, lng: 83.0076, type: 'opencast', target: 6.8, actual: 6.5, subsidiary: 'NALCO - Bauxite' },
+
+            // --- MANGANESE ---
+            { id: 'balaghat', name: 'Balaghat Manganese', risk: 70, workers: 150, lat: 21.8152, lng: 80.1830, type: 'underground', target: 0.5, actual: 0.45, subsidiary: 'MOIL - Manganese' },
+            { id: 'dongri_buzurg', name: 'Dongri Buzurg', risk: 55, workers: 120, lat: 21.5200, lng: 79.6900, type: 'opencast', target: 0.4, actual: 0.38, subsidiary: 'MOIL - Manganese' }
+        ];
+
+        function renderProductionBars() {
+            const container = document.getElementById('gps-production-bars');
+            if (!container) return;
+            const topMines = coalMiningSites.filter(s => s.target > 0).sort((a, b) => b.actual - a.actual).slice(0, 5);
+            let html = '';
+            topMines.forEach(site => {
+                const pct = Math.min(100, (site.actual / site.target) * 100);
+                html += `
+                    <div style="margin-bottom:8px">
+                        <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:#94a3b8;margin-bottom:2px">
+                            <span>${site.name.split(' ')[0]} (${site.subsidiary})</span>
+                            <span style="color:#fff">${site.actual} MT</span>
+                        </div>
+                        <div style="width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden">
+                            <div style="width:${pct}%;height:100%;background:${pct > 90 ? '#34d399' : '#3b82f6'};border-radius:3px"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function initGpsMap() {
+            if (leafletMap) return;
+            leafletMap = L.map('gps-map').setView([22.9, 82.5], 5);
+
+            // Google Maps Hybrid Layer (Satellite + City Borders/Labels)
+            L.tileLayer('http://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}&s=Ga', {
+                attribution: '&copy; Google Maps'
+            }).addTo(leafletMap);
+
+            markersGroup = L.layerGroup().addTo(leafletMap);
+
+            coalMiningSites.forEach(site => {
+                const color = site.type === 'highrisk' ? '#ef4444' : '#3b82f6';
+                const circle = L.circleMarker([site.lat, site.lng], {
+                    radius: 8 + (site.risk / 15),
+                    fillColor: color,
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+
+                circle.bindPopup(`
+                    <div style="font-family:'Plus Jakarta Sans',sans-serif;min-width:220px;color:#000;">
+                        <strong style="font-size:16px;color:#0f172a">${site.name}</strong>
+                        <div style="margin-top:6px;border-top:1px solid #e2e8f0;padding-top:6px;line-height:1.4">
+                            <span style="color:#64748b;font-size:12px">Subsidiary: </span><strong style="color:#0f172a;font-size:12px">${site.subsidiary}</strong><br/>
+                            <span style="color:#64748b;font-size:12px">Risk Level: </span><strong style="color:${site.risk > 80 ? '#ef4444' : (site.risk > 65 ? '#f59e0b' : '#10b981')};font-size:12px">${site.risk}%</strong><br/>
+                            <span style="color:#64748b;font-size:12px">Active Workers: </span><strong style="color:#0f172a;font-size:12px">${site.workers}</strong><br/>
+                            ${site.target > 0 ? `<span style="color:#64748b;font-size:12px">Production: </span><strong style="color:#0f172a;font-size:12px">${site.actual} MT / ${site.target} MT</strong>` : `<span style="color:#ef4444;font-size:12px;font-weight:bold">Status: Legacy / Fire Zone</span>`}
+                        </div>
+                    </div>
+                `);
+
+                circle.addTo(markersGroup);
+            });
+
+            // Render search options
+            const datalist = document.getElementById('gps-site-list');
+            if (datalist) {
+                datalist.innerHTML = coalMiningSites.map(s => `<option value="${s.name}"></option>`).join('');
+            }
+        }
+
+        function leafletFlyTo(lat, lng, zoom, name) {
+            if (leafletMap) {
+                leafletMap.flyTo([lat, lng], zoom, { duration: 1.5 });
+                const activeEl = document.getElementById('gps-active-site');
+                if (activeEl) activeEl.textContent = name;
+            }
+        }
+
+        document.getElementById('gps-search')?.addEventListener('change', (e) => {
+            const val = e.target.value.toLowerCase();
+            const site = coalMiningSites.find(s => s.name.toLowerCase().includes(val));
+            if (site) leafletFlyTo(site.lat, site.lng, 12, site.name);
+        });
+
+        function renderGPSAtlas() {
+            setTimeout(initGpsMap, 300); // Wait for tab to be visible
+            renderProductionBars();
+        }
+
+
+
+        // ================================================================
+        //  EIA TABLE (BACKEND INTEGRATED)
+        // ================================================================
+        let eiaData = [];
+        let complianceStats = { totalSnapshots: 0, passedSnapshots: 0, pending: 0 };
+
+        async function fetchEIA() {
+            try {
+                const res = await fetch('http://localhost:3000/api/eia');
+                const data = await res.json();
+                if (data.success) {
+                    eiaData = data.data;
+                    renderEIA();
+                }
+            } catch (e) {
+                console.error("Failed to fetch EIA:", e);
+            }
+        }
+
+        // Initial fetch
+        setTimeout(fetchEIA, 1000);
+
+        function renderEIA() {
+            const tbody = document.getElementById('eia-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = eiaData.map(r => `
+    <tr>
+      <td>${r.time}</td>
+      <td style="color:var(--text-primary)">${r.param}</td>
+      <td style="font-family:'Times New Roman'">${r.val}</td>
+      <td style="color:var(--text-dim)">${r.limit_val || r.limit}</td>
+      <td><span class="status-pill pill-${r.status}">${r.status.toUpperCase()}</span></td>
+      <td>${r.loc}</td>
+    </tr>`).join('');
+
+            // Update stats
+            const compEl = document.getElementById('stat-dgms-compliance');
+            const repEl = document.getElementById('stat-eia-reports');
+            const pendEl = document.getElementById('stat-pending-clearances');
+
+            if (complianceStats.totalSnapshots > 0) {
+                let pct = (complianceStats.passedSnapshots / complianceStats.totalSnapshots) * 100;
+                if (compEl) {
+                    compEl.textContent = pct.toFixed(1) + '%';
+                    compEl.style.color = pct >= 95 ? 'var(--accent-green)' : (pct >= 80 ? 'var(--accent-yellow)' : 'var(--accent-red)');
+                }
+            }
+            if (repEl) repEl.textContent = complianceStats.totalSnapshots;
+            if (pendEl) {
+                pendEl.textContent = complianceStats.pending;
+                pendEl.style.color = complianceStats.pending > 0 ? 'var(--accent-red)' : 'var(--accent-yellow)';
+            }
+        }
+        renderEIA();
+
+        async function addEIAEntry() {
+            if (!liveData || !liveData.temp) {
+                alert('Connect the serial port first to add live EIA data.');
+                return;
+            }
+
+            const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            // Evaluate limits based on DGMS 2017
+            let ch4Ok = liveData.mq4 <= 12500;
+            let coOk = liveData.mq135 <= 50;
+            let tempOk = liveData.temp <= 33.5;
+
+            let isSnapshotPassed = ch4Ok && coOk && tempOk;
+            complianceStats.totalSnapshots++;
+            if (isSnapshotPassed) {
+                complianceStats.passedSnapshots++;
+            } else {
+                complianceStats.pending++; // Failed snapshots require clearance/review
+            }
+
+            const newEntries = [
+                { time: timeStr, param: 'Ambient Temp', val: liveData.temp.toFixed(1) + ' °C', limit: '33.5 °C', status: tempOk ? 'ok' : 'danger', loc: 'Active Face' },
+                { time: timeStr, param: 'CO (Carbon Monoxide)', val: Math.round(liveData.mq135) + ' PPM', limit: '50 PPM', status: coOk ? 'ok' : 'danger', loc: 'Active Face' },
+                { time: timeStr, param: 'CH₄ (Methane)', val: Math.round(liveData.mq4) + ' PPM', limit: '12500 PPM', status: ch4Ok ? 'ok' : 'danger', loc: 'Active Face' }
+            ];
+
+            try {
+                await fetch('http://localhost:3000/api/eia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entries: newEntries })
+                });
+                await fetchEIA(); // reload from DB
+            } catch (e) {
+                console.error("Failed to post EIA:", e);
+                eiaData = [...newEntries, ...eiaData].slice(0, 50);
+                renderEIA();
+            }
+
+            addLog("EIA compliance snapshot recorded to Transparency Vault.", "info");
+        }
+
+        // ================================================================
+        //  PUBLIC METRICS
+        // ================================================================
+        function updatePublicMetrics(m4, m135) {
+            const el = document.getElementById('pub-air');
+            if (!el) return;
+            if (m4 > 2000 || m135 > 2000) { el.textContent = 'POOR'; el.style.color = 'var(--accent-red)'; }
+            else if (m4 > 1000 || m135 > 1000) { el.textContent = 'MODERATE'; el.style.color = 'var(--accent-yellow)'; }
+            else { el.textContent = 'GOOD'; el.style.color = 'var(--accent-green)'; }
+        }
+
+        // ================================================================
+        //  MAINTENANCE
+        // ================================================================
+        const equipment = [
+            { icon: '⚙', name: 'Longwall Shearer', health: 78, status: 'NORMAL', temp: 64, vib: 0.3 },
+            { icon: '🔩', name: 'Roof Bolter #2', health: 45, status: 'MAINTENANCE SOON', temp: 72, vib: 0.7 },
+            { icon: '💧', name: 'Main Dewatering Pump', health: 91, status: 'NORMAL', temp: 55, vib: 0.2 },
+            { icon: '🌬', name: 'Main Fan A', health: 62, status: 'CHECK BEARINGS', temp: 68, vib: 0.5 },
+            { icon: '🚜', name: 'LHD Loader', health: 33, status: 'CRITICAL', temp: 89, vib: 1.1 },
+        ];
+
+        function renderEquipment() {
+            const el = document.getElementById('equipmentList');
+            if (!el) return;
+            el.innerHTML = equipment.map(e => {
+                const color = e.health > 70 ? 'var(--accent-green)' : e.health > 50 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+                return `<div class="equipment-item">
+      <div class="equip-icon">${e.icon}</div>
+      <div style="flex:1">
+        <div class="equip-name">${e.name}</div>
+        <div class="equip-detail">${e.status} | Temp: ${e.temp}°C | Vib: ${e.vib}g</div>
+        <div class="health-bar" style="margin-top:4px"><div class="health-fill" style="width:${e.health}%;background:${color}"></div></div>
+      </div>
+      <div style="font-family:'Orbitron';font-size:0.9rem;color:${color}">${e.health}%</div>
+    </div>`;
+            }).join('');
+        }
+        renderEquipment();
+
+        function renderEnergy() {
+            const el = document.getElementById('energyPanel');
+            if (!el) return;
+            const items = [
+                { name: 'VENTILATION', val: 82, unit: 'kW' },
+                { name: 'DEWATERING', val: 45, unit: 'kW' },
+                { name: 'HAULAGE', val: 67, unit: 'kW' },
+                { name: 'LIGHTING', val: 23, unit: 'kW' },
+                { name: 'COOLING', val: 91, unit: 'kW' },
+            ];
+            el.innerHTML = items.map(i => `
+    <div class="energy-item">
+      <div class="energy-header">
+        <div class="energy-name">${i.name}</div>
+        <div class="energy-val">${i.val} ${i.unit}</div>
+      </div>
+      <div class="energy-track"><div class="energy-fill" style="width:${i.val}%;background:${i.val > 85 ? 'var(--accent-red)' : i.val > 70 ? 'var(--accent-orange)' : 'var(--accent-cyan)'}"></div></div>
+    </div>`).join('');
+        }
+        renderEnergy();
+
+        function renderRakes() {
+            const el = document.getElementById('rakePanel');
+            if (!el) return;
+            const rakes = [
+                { id: 'WR-2847', progress: 72, eta: '~2h' },
+                { id: 'ER-1923', progress: 45, eta: '~4h' },
+                { id: 'CR-3841', progress: 88, eta: '~45m' },
+            ];
+            el.innerHTML = `<div style="font-family:'Times New Roman';font-size:0.65rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:2px">FOIS LIVE RAKE TRACKING</div>` +
+                rakes.map(r => `
+    <div class="rake-row">
+      <div class="rake-id">${r.id}</div>
+      <div class="rake-track">
+        <div class="rake-progress" style="width:${r.progress}%"></div>
+        <div class="rake-train" style="left:${r.progress - 5}%">🚂</div>
+      </div>
+      <div class="rake-eta">${r.eta}</div>
+    </div>`).join('');
+        }
+        renderRakes();
+
+        function renderPDM() {
+            const el = document.getElementById('pdmGauges');
+            if (!el) return;
+            const machines = [
+                { name: 'Shearer', vib: 0.3, heat: 64, risk: 18 },
+                { name: 'Main Fan', vib: 0.5, heat: 68, risk: 42 },
+                { name: 'LHD Loader', vib: 1.1, heat: 89, risk: 79 },
+            ];
+            el.innerHTML = machines.map(m => {
+                const riskColor = m.risk > 70 ? '#dc2626' : m.risk > 40 ? '#f97316' : '#22c55e';
+                const circ = 2 * Math.PI * 40;
+                const dash = circ * (1 - m.risk / 100);
+                return `<div style="text-align:center;padding:16px">
+      <div class="pdm-gauge">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="8"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="${riskColor}" stroke-width="8"
+            stroke-dasharray="${circ}" stroke-dashoffset="${dash}" stroke-linecap="round"
+            style="transition:stroke-dashoffset 1s"/>
+        </svg>
+        <div class="pdm-label">
+          <div class="pdm-pct" style="color:${riskColor}">${m.risk}%</div>
+          <div class="pdm-sub">FAILURE RISK</div>
+        </div>
+      </div>
+      <div style="font-family:'Orbitron';font-size:0.7rem;color:var(--text-primary);margin-top:8px">${m.name}</div>
+      <div style="font-family:'Times New Roman';font-size:0.65rem;color:var(--text-secondary)">Vib: ${m.vib}g | Heat: ${m.heat}°C</div>
+      <div style="margin-top:6px">
+        <span class="status-pill ${m.risk > 70 ? 'pill-crit' : m.risk > 40 ? 'pill-warn' : 'pill-ok'}">${m.risk > 70 ? 'REPLACE SOON' : m.risk > 40 ? 'MONITOR' : 'HEALTHY'}</span>
+      </div>
+    </div>`;
+            }).join('');
+        }
+        renderPDM();
+
+
+
+        // ================================================================
+        //  COMMUNITY FEEDBACK
+        // ================================================================
+        const languageOptions = {
+            en: { label: 'English', type: 'Report Type', types: ['Near-Miss Event', 'Environmental Concern', 'Safety Hazard', 'Equipment Issue', 'Water/Air Quality'], name: 'Your Name (optional)', location: 'Location / Village', desc: 'Describe the concern...', submit: 'Submit Report' },
+            hi: { label: 'हिंदी', type: 'रिपोर्ट प्रकार', types: ['निकट-चूक घटना', 'पर्यावरण संबंधी चिंता', 'सुरक्षा खतरा', 'उपकरण समस्या', 'जल/वायु गुणवत्ता'], name: 'आपका नाम (वैकल्पिक)', location: 'स्थान / गाँव', desc: 'चिंता का वर्णन करें...', submit: 'रिपोर्ट जमा करें' },
+            bn: { label: 'বাংলা', type: 'রিপোর্ট ধরন', types: ['নিকট-মিস ঘটনা', 'পরিবেশগত উদ্বেগ', 'নিরাপত্তা ঝুঁকি', 'উপকরণ সমস্যা', 'জল/বায়ু গুণমান'], name: 'আপনার নাম (ঐচ্ছিক)', location: 'অবস্থান / গ্রাম', desc: 'উদ্বেগটি বর্ণনা করুন...', submit: 'রিপোর্ট জমা দিন' },
+            te: { label: 'తెలుగు', type: 'నివేదిక రకం', types: ['దగ్గరగా తప్పిన సంఘటన', 'పర్యావరణ ఆందోళన', 'భద్రతా ప్రమాదం', 'పరికరాల సమస్య', 'నీరు/గాలి నాణ్యత'], name: 'మీ పేరు (ఐచ్ఛికం)', location: 'స్థానం / గ్రామం', desc: 'ఆందోళనను వివరించండి...', submit: 'నివేదికను సమర్పించు' },
+            mr: { label: 'मराठी', type: 'अहवाल प्रकार', types: ['नजीकची घटना', 'पर्यावरणीय चिंता', 'सुरक्षा धोका', 'उपकरण समस्या', 'पाणी/हवा गुणवत्ता'], name: 'तुमचे नाव (ऐच्छिक)', location: 'ठिकाण / गाव', desc: 'काळजीचे वर्णन करा...', submit: 'अहवाल पाठवा' },
+            ta: { label: 'தமிழ்', type: 'அறிக்கை வகை', types: ['நெருக்கமான தவறு', 'சுற்றுச்சூழல் கவலை', 'பாதுகாப்பு அபாயம்', 'கருவி பிரச்சினை', 'நீர்/காற்று தரம்'], name: 'உங்கள் பெயர் (விருப்பம்)', location: 'இடம் / கிராமம்', desc: 'கவலையை விவரிக்கவும்...', submit: 'அறிக்கையை சமர்ப்பிக்கவும்' },
+            ur: { label: 'اردو', type: 'رپورٹ کی قسم', types: ['قریب-مس واقعہ', 'ماحولیاتی تشویش', 'حفاظتی خطرہ', 'آلات کا مسئلہ', 'پانی/ہوا کی کوالٹی'], name: 'آپ کا نام (اختیاری)', location: 'مقام / گاؤں', desc: 'تشویش بیان کریں...', submit: 'رپورٹ جمع کریں' },
+            gu: { label: 'ગુજરાતી', type: 'અહેવાલ પ્રકાર', types: ['નજીક-ચૂક ઘટના', 'પર્યાવરણીય ચિંતા', 'સુરક્ષા જોખમ', 'ઉપકરણ સમસ્યા', 'પાણી/હવા ગુણવત્તા'], name: 'તમારું નામ (વૈકલ્પિક)', location: 'સ્થાન / ગામ', desc: 'ચિંતા વર્ણવો...', submit: 'અહેવાલ મોકલો' },
+            kn: { label: 'ಕನ್ನಡ', type: 'ವರದಿ ಪ್ರಕಾರ', types: ['ತೀರ ತಪ್ಪಿದ ಘಟನೆ', 'ಪರಿಸರ ಚಿಂತೆ', 'ಸುರಕ್ಷತಾ ಅಪಾಯ', 'ಉಪಕರಣ ಸಮಸ್ಯೆ', 'ನೀರು/ಗಾಳಿ ಗುಣಮಟ್ಟ'], name: 'ನಿಮ್ಮ ಹೆಸರು (ಐಚ್ಛಿಕ)', location: 'ಸ್ಥಳ / ಗ್ರಾಮ', desc: 'ಚಿಂತೆಯನ್ನು ವಿವರಿಸಿ...', submit: 'ವರದಿಯನ್ನು ಸಲ್ಲಿಸಿ' },
+            ml: { label: 'മലയാളം', type: 'റിപ്പോർട്ട് തരം', types: ['അടുത്ത്-മിസ് സംഭവം', 'പരിസ്ഥിതി ആശങ്ക', 'സുരക്ഷാ അപകടം', 'ഉപകരണ പ്രശ്നം', 'ജലം/വായു ഗുണമേന്മ'], name: 'നിങ്ങളുടെ പേര് (ഐച്ഛികം)', location: 'സ്ഥലം / ഗ്രാമം', desc: 'ആശങ്ക വിശദീകരിക്കുക...', submit: 'റിപ്പോർട്ട് സമർപ്പിക്കുക' },
+            pa: { label: 'ਪੰਜਾਬੀ', type: 'ਰਿਪੋਰਟ ਕਿਸਮ', types: ['ਨੇੜਲਾ-ਮਿਸ਼ ਘਟਨਾ', 'ਵਾਤਾਵਰਣ ਚਿੰਤਾ', 'ਸੁਰੱਖਿਆ ਖ਼ਤਰਾ', 'ਉਪਕਰਣ ਸਮੱਸਿਆ', 'ਪਾਣੀ/ਹਵਾ ਗੁਣਵੱਤਾ'], name: 'ਤੁਹਾਡਾ ਨਾਮ (ਵਿਕਲਪਿਕ)', location: 'ਟਿਕਾਣਾ / ਪਿੰਡ', desc: 'ਚਿੰਤਾ ਦਾ ਵੇਰਵਾ ਦਿਓ...', submit: 'ਰਿਪੋਰਟ ਭੇਜੋ' },
+            as: { label: 'অসমীয়া', type: 'ৰিপৰ্টৰ ধৰণ', types: ['নিকট-মিছ ঘটনা', 'পৰিবেশগত উদ্বেগ', 'সুৰক্ষাৰ বিপদ', 'উপকৰণ সমস্যা', 'পানী/বায়ু গুণমান'], name: 'আপোনাৰ নাম (ঐচ্ছিক)', location: 'স্থান / গাঁও', desc: 'উদ্বেগ বৰ্ণনা কৰক...', submit: 'ৰিপৰ্ট দাখিল কৰক' },
+            or: { label: 'ଓଡ଼ିଆ', type: 'ରିପୋର୍ଟ ପ୍ରକାର', types: ['ନିକଟ-ମିସ୍ ଘଟଣା', 'ପରିବେଶ ଚିନ୍ତା', 'ସୁରକ୍ଷା ବିପଦ', 'ଉପକରଣ ସମସ୍ୟା', 'ଜଳ/ବାୟୁ ଗୁଣ'], name: 'ଆପଣଙ୍କ ନାମ (ଐଚ୍ଛିକ)', location: 'ସ୍ଥାନ / ଗ୍ରାମ', desc: 'ଚିନ୍ତା ବର୍ଣ୍ଣନା କରନ୍ତୁ...', submit: 'ରିପୋର୍ଟ ଦାଖଲ କରନ୍ତୁ' },
+            ks: { label: 'Kashmiri', type: 'Report Type', types: ['Near-Miss Event', 'Environmental Concern', 'Safety Hazard', 'Equipment Issue', 'Water/Air Quality'], name: 'Your Name (optional)', location: 'Location / Village', desc: 'Describe the concern...', submit: 'Submit Report' },
+            kok: { label: 'कोंकणी', type: 'अहवाल प्रकार', types: ['नजिकची चूक', 'पर्यावरण चिंता', 'सुरक्षा धोका', 'उपकरण समस्या', 'पाणी/हवा गुणवत्ता'], name: 'तुमचें नांव (ऐच्छिक)', location: 'ठाव / गांव', desc: 'चिंतेचें वर्णन करात...', submit: 'अहवाल सादर करात' },
+            mai: { label: 'मैथिली', type: 'रिपोर्ट प्रकार', types: ['निकट-चूक घटना', 'पर्यावरणीय चिन्ता', 'सुरक्षा खतरा', 'उपकरण समस्या', 'जल/वायु गुणवत्ता'], name: 'अहाँक नाम (वैकल्पिक)', location: 'स्थान / गाम', desc: 'चिन्ता के वर्णन करू...', submit: 'रिपोर्ट जमा करू' },
+            mni: { label: 'ꯃꯤꯇꯩꯂꯣꯟ', type: 'Report Type', types: ['Near-Miss Event', 'Environmental Concern', 'Safety Hazard', 'Equipment Issue', 'Water/Air Quality'], name: 'Your Name (optional)', location: 'Location / Village', desc: 'Describe the concern...', submit: 'Submit Report' },
+            ne: { label: 'नेपाली', type: 'रिपोर्ट प्रकार', types: ['नजिक–छुट घटना', 'वातावरणीय चिन्ता', 'सुरक्षा खतरा', 'उपकरण समस्या', 'पानी/हावा गुणस्तर'], name: 'तपाईंको नाम (ऐच्छिक)', location: 'स्थान / गाउँ', desc: 'चिन्ता वर्णन गर्नुहोस्...', submit: 'रिपोर्ट पेश गर्नुहोस्' },
+            sd: { label: 'سنڌي', type: 'رپورٽ قسم', types: ['قريب-مس واقعو', 'ماحولياتي ڳڻتي', 'حفاظتي خطرو', 'سامان جو مسئلو', 'پاڻي/هوا معيار'], name: 'توهانجو نالو (اختياري)', location: 'جاءِ / ڳوٺ', desc: 'پريشاني بيان ڪريو...', submit: 'رپورٽ موڪليو' },
+            sa: { label: 'संस्कृत', type: 'प्रतिकेदन प्रकारः', types: ['निकट-भ्रमणम्', 'पर्यावरण-चिन्ता', 'सुरक्षा-आपदा', 'उपकरण-दोषः', 'जल-वायु-गुणवत्ता'], name: 'भवतः नाम (इच्छानुसारम्)', location: 'स्थानम् / ग्रामः', desc: 'समस्यायाः वर्णनं कुरु...', submit: 'प्रतिकेदनं प्रेषयतु' },
+            sat: { label: 'ᱥᱟᱱᱛᱟᱲᱤ', type: 'Report Type', types: ['Near-Miss Event', 'Environmental Concern', 'Safety Hazard', 'Equipment Issue', 'Water/Air Quality'], name: 'Your Name (optional)', location: 'Location / Village', desc: 'Describe the concern...', submit: 'Submit Report' },
+            doi: { label: 'Dogri', type: 'रिपोर्ट प्रकार', types: ['नेड़े चूक घटना', 'पर्यावरणी चिंता', 'सुरक्षा खतरा', 'उपकरण समस्या', 'पानी/हवा गुणवत्ता'], name: 'तुसां दा नांऽ (इच्छानुसार)', location: 'स्थान / गांऽ', desc: 'चिंता दा ब्योरा देओ...', submit: 'रिपोर्ट भेजो' },
+            brx: { label: 'बडो', type: 'रिपोर्ट प्रकार', types: ['नजिक-मिस घटना', 'पर्यावरणीय चिन्ता', 'सुरक्षा खतरा', 'उपकरण समस्या', 'पानि/हवा गुणस्तर'], name: 'नोंथां (गोब्राय)', location: 'जायगान / गाव', desc: 'जुजोनानै बिबांखौ...', submit: 'रिपर्ट सायखो' },
+        };
+        const languageOrder = ['en', 'hi'];
+
+        const chromeStrings = {
+            en: {
+                nav: ['Operations Console', 'Predictive Engine', 'GPS Atlas', 'Compliance Portal', 'Maintenance & Logistics'],
+                sections: ['PROACTIVE ALERT ENGINE', 'ALL INDIA MINING GPS ATLAS — REAL-TIME ZONE MONITORING', 'INTEGRATED COMPLIANCE PORTAL', 'MAINTENANCE & LOGISTICS OPTIMIZER'],
+                actionLabel: 'OPERATOR ACTIONS //',
+                connect: '⚡ CONNECT SERIAL PORT',
+                caution: '⚠ MANUAL CAUTION',
+                danger: '🚨 EMERGENCY SIREN',
+                reset: '↺ SYSTEM RESET',
+                report: '📄 DGMS REPORT',
+                theme: 'Dark mode',
+                banner: '◈ ALL SYSTEMS NOMINAL // AWAITING TELEMETRY LINK ◈',
+            },
+            hi: {
+                nav: ['संचालन कंसोल', 'पूर्वानुमान इंजन', 'GPS एटलस', 'अनुपालन पोर्टल', 'रखरखाव और लॉजिस्टिक्स'],
+                sections: ['पूर्व चेतावनी इंजन', 'भारत कोयला खनन GPS एटलस — रीयल-टाइम क्षेत्र निगरानी', 'एकीकृत अनुपालन पोर्टल', 'रखरखाव और लॉजिस्टिक्स ऑप्टिमाइज़र'],
+                actionLabel: 'ऑपरेटर क्रियाएँ //',
+                connect: '⚡ सीरियल पोर्ट जोड़ें',
+                caution: '⚠ मैनुअल सावधानी',
+                danger: '🚨 आपात सायरन',
+                reset: '↺ सिस्टम रीसेट',
+                report: '📄 DGMS रिपोर्ट',
+                theme: 'डार्क मोड',
+                banner: '◈ सभी प्रणालियाँ सामान्य हैं // टेलीमेट्री लिंक की प्रतीक्षा ◈',
+            }
+        };
+
+        function applyTheme(themeName) {
+            document.body.dataset.theme = themeName;
+            localStorage.setItem('mineguard-theme', themeName);
+            const themeButton = document.getElementById('themeToggleBtn');
+            if (themeButton) themeButton.innerHTML = themeName === 'dark' ? '☀️ Light' : '🌙 Dark';
+        }
+
+        function applyChromeLanguage() {
+            const chrome = chromeStrings[currentLang] || chromeStrings.en;
+            const statusBanner = document.getElementById('status-banner');
+            if (statusBanner) statusBanner.textContent = chrome.banner;
+
+            const navLabels = document.querySelectorAll('.nav-tab');
+            chrome.nav.forEach((label, index) => {
+                if (navLabels[index]) navLabels[index].lastChild.textContent = label;
+            });
+
+            const titles = [
+                'title-predict',
+                'title-gps',
+                'title-compliance',
+                'title-maintenance',
+            ];
+            titles.forEach((id, index) => {
+                const el = document.getElementById(id);
+                if (el) el.childNodes[0].nodeValue = '⚡ ' + chrome.sections[index];
+            });
+
+            const actionLabel = document.querySelector('.control-label');
+            if (actionLabel) actionLabel.textContent = chrome.actionLabel;
+
+            const connectBtn = document.getElementById('connectBtn');
+            if (connectBtn) connectBtn.textContent = chrome.connect;
+            const cautionBtn = document.getElementById('btnCaution');
+            if (cautionBtn) cautionBtn.textContent = chrome.caution;
+            const dangerBtn = document.getElementById('btnDanger');
+            if (dangerBtn) dangerBtn.textContent = chrome.danger;
+            const resetBtn = document.getElementById('btnReset');
+            if (resetBtn) resetBtn.textContent = chrome.reset;
+            const reportBtn = document.querySelector('.control-panel .btn-green');
+            if (reportBtn) reportBtn.textContent = chrome.report;
+
+            const themeButton = document.getElementById('themeToggleBtn');
+            if (themeButton) themeButton.textContent = document.body.dataset.theme === 'dark' ? 'Light mode' : chrome.theme;
+            applyGPSLocalization();
+        }
+
+        currentLang = currentLang || 'en';
+        function renderLanguagePicker() {
+            const optionsMarkup = languageOrder.map(code => `<option value="${code}" ${code === currentLang ? 'selected' : ''}>${languageOptions[code].label}</option>`).join('');
+            const headerPicker = document.getElementById('site-language-picker');
+            if (headerPicker) {
+                headerPicker.className = 'lang-picker compact';
+                headerPicker.innerHTML = optionsMarkup;
+                headerPicker.onchange = e => setLang(e.target.value);
+            }
+            const lowerPicker = document.getElementById('languagePicker');
+            if (lowerPicker) lowerPicker.innerHTML = `<select id="lang-select" class="lang-picker" onchange="setLang(this.value)">${optionsMarkup}</select>`;
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            renderFeedbackForm();
+            renderLanguagePicker();
+            renderGPSAtlas();
+
+            // Trigger Google Translate for full-page translation
+            const selectField = document.querySelector(".goog-te-combo");
+            if (selectField) {
+                selectField.value = lang;
+                selectField.dispatchEvent(new Event('change'));
+            } else {
+                // Initial load fallback
+                setTimeout(() => {
+                    const retryField = document.querySelector(".goog-te-combo");
+                    if (retryField) {
+                        retryField.value = lang;
+                        retryField.dispatchEvent(new Event('change'));
+                    }
+                }, 1000);
+            }
+
+            // Set cookie fallback
+            document.cookie = `googtrans=/en/${lang}; path=/`;
+        }
+
+        function renderFeedbackForm() {
+            const L = languageOptions[currentLang] || languageOptions.en;
+            const el = document.getElementById('feedbackForm');
+            if (!el) return;
+            el.innerHTML = `
+    <div><label>${L.type}</label>
+    <select id="fb-type"><option>${L.types.join('</option><option>')}</option></select></div>
+    <div><label>${L.name}</label><input type="text" id="fb-name" placeholder="${L.name}"></div>
+    <div><label>${L.location}</label><input type="text" id="fb-loc" placeholder="${L.location}"></div>
+    <div><label>Details</label><textarea id="fb-desc" placeholder="${L.desc}"></textarea></div>
+    <button class="btn btn-green" onclick="submitFeedback()" style="width:100%">${L.submit}</button>`;
+        }
+        renderLanguagePicker();
+        renderFeedbackForm();
+        applyTheme(localStorage.getItem('mineguard-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark');
+            });
+        }
+
+        const communityReportsList = [];
+
+        async function fetchFeedback() {
+            try {
+                const res = await fetch('http://localhost:3000/api/feedback');
+                const data = await res.json();
+                if (data.success) {
+                    communityReportsList.length = 0;
+                    communityReportsList.push(...data.data);
+                    renderCommunityReports();
+                }
+            } catch (e) {
+                console.error("Failed to fetch feedback:", e);
+            }
+        }
+        setTimeout(fetchFeedback, 500);
+
+        function renderCommunityReports() {
+            const el = document.getElementById('communityReports');
+            if (!el) return;
+            el.innerHTML = communityReportsList.map(r => `
+    <div style="padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="color:var(--accent-cyan)">${r.type}</span>
+        <span style="color:var(--text-dim);font-size:0.65rem">${r.time}</span>
+      </div>
+      <div style="color:var(--text-secondary);font-size:0.7rem">${r.desc}</div>
+      <div style="color:var(--text-dim);font-size:0.6rem;margin-top:2px">📍 ${r.loc} • ${r.lang}</div>
+    </div>`).join('');
+        }
+        renderCommunityReports();
+
+        async function submitFeedback() {
+            const type = document.getElementById('fb-type')?.value || 'Unknown';
+            const loc = document.getElementById('fb-loc')?.value || 'Unknown';
+            const desc = document.getElementById('fb-desc')?.value;
+            if (!desc) { alert('Please describe the concern.'); return; }
+
+            const newFeedback = {
+                lang: currentLang.toUpperCase(),
+                type,
+                loc,
+                desc,
+                time: 'Just now'
+            };
+
+            try {
+                await fetch('http://localhost:3000/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newFeedback)
+                });
+                await fetchFeedback(); // refresh
+            } catch (e) {
+                communityReportsList.unshift(newFeedback);
+                renderCommunityReports();
+            }
+
+            addLog("Community feedback received: " + type + " from " + loc, "info");
+            renderFeedbackForm();
+            renderLanguagePicker();
+        }
+
+        // ================================================================
+        //  REPORT GENERATOR
+        // ================================================================
+        function updateReport(m4, m135, t) {
+            document.getElementById('rpt-ch4').textContent = Math.round(peaks.mq4);
+            document.getElementById('rpt-co').textContent = Math.round(peaks.mq135);
+            document.getElementById('rpt-temp').textContent = peaks.temp.toFixed(1);
+            const status = (peaks.mq4 >= 12500 || peaks.mq135 >= 50 || peaks.temp >= 33.5) ? 'NON-COMPLIANT' : 'COMPLIANT';
+            const el = document.getElementById('rpt-status');
+            if (el) { el.textContent = status; el.style.color = status === 'COMPLIANT' ? 'var(--accent-green)' : 'var(--accent-red)'; }
+        }
+
+        async function downloadReport() {
+            updateReport();
+            addLog("📄 Requesting DGMS PDF Report from backend...", "info");
+            
+            try {
+                const res = await fetch(BACKEND + '/api/report/pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mineId: 'MG-HACKOLUTION-2K26',
+                        mineName: 'MineGuard Pilot Mine',
+                        location: 'Central India Coalfields',
+                        peaks: {
+                            mq4: peaks.mq4,
+                            mq135: peaks.mq135,
+                            temp: peaks.temp
+                        },
+                        incidents: incidentCount,
+                        operator: 'MINE MANAGER'
+                    })
+                });
+                
+                if (!res.ok) throw new Error('Failed to generate PDF');
+                
+                const blob = await res.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'DGMS_Report_' + new Date().toISOString().split('T')[0] + '.pdf';
+                a.click();
+                
+                addLog("✓ DGMS PDF Report downloaded successfully.", "info");
+            } catch(e) {
+                addLog("⚠ Backend PDF generation failed. Is the server running?", "danger");
+                console.error(e);
+            }
+        }
+        
+        function generateDGMSReport() {
+            downloadReport();
+        }
+
+        // ================================================================
+        //  ENERGY ANIMATION
+        // ================================================================
+        setInterval(() => {
+            const fluctuate = (base, range) => Math.max(0, Math.min(100, base + (Math.random() - 0.5) * range));
+            const gv = fluctuate(67, 5);
+            const vv = fluctuate(82, 4);
+            const pv = fluctuate(45, 6);
+            const gBar = document.getElementById('grid-bar'); if (gBar) gBar.style.width = gv + '%';
+            const vBar = document.getElementById('vent-bar'); if (vBar) vBar.style.width = vv + '%';
+            const pBar = document.getElementById('pump-bar'); if (pBar) pBar.style.width = pv + '%';
+            const gVal = document.getElementById('grid-val'); if (gVal) gVal.textContent = Math.round(gv) + '%';
+            const vVal = document.getElementById('vent-val'); if (vVal) vVal.textContent = Math.round(vv) + '%';
+            const pVal = document.getElementById('pump-val'); if (pVal) pVal.textContent = Math.round(pv) + '%';
+        }, 3000);
+
+        // Initial log messages
+        setTimeout(() => addLog("◈ MineGuard IoT v4.0 initialized — Smart Safety Bubble active", "info"), 500);
+        setTimeout(() => addLog("◈ Waiting for live serial telemetry from the device", "info"), 1500);
+        setTimeout(() => addLog("◈ Edge AI Engine: Kalman filter active, LSTM model loaded", "info"), 2500);
+        setTimeout(() => addLog("◈ All IoT nodes polling every 2 seconds", "normal"), 3500);
+    </script>
+
+    <!-- Google Translate Widget for Full Page Translation -->
+    <style>
+        /* Hide the Google Translate top banner and default padding */
+        .goog-te-banner-frame.skiptranslate {
+            display: none !important;
+        }
+
+        body {
+            top: 0px !important;
+        }
+
+        #goog-gt-tt {
+            display: none !important;
+            top: 0px !important;
+        }
+
+        .goog-tooltip skiptranslate {
+            display: none !important;
+            top: 0px !important;
+        }
+
+        .goog-text-highlight {
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+    </style>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript"
+        src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</body>
+
+</html>
